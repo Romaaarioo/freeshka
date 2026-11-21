@@ -19,6 +19,7 @@ const els = {
   reset: document.getElementById('reset'),
   total: document.getElementById('total'),
   multiple: document.getElementById('multiple'),
+  threshold: document.getElementById('threshold'),
   badge: document.getElementById('arbBadge'),
   profitLine: document.getElementById('profitLine'),
   profitSub: document.getElementById('profitSub'),
@@ -89,6 +90,7 @@ function renderRows() {
     const delBtn = row.querySelector('.del');
 
     row.querySelector('.c-k').insertAdjacentHTML('beforeend', '<div class="k-hint"></div>');
+    row.querySelector('.c-amt').insertAdjacentHTML('beforeend', '<div class="s-hint"></div>');
 
     kIn.value = o.k;
     amtIn.value = o.amt;
@@ -184,8 +186,14 @@ function recalc() {
   const invested = vals.reduce((a, b) => a + (Number.isNaN(b) ? 0 : b), 0);
   const profits = ks.map((k, i) => (Number.isNaN(vals[i]) ? 0 : k * vals[i]) - invested);
 
-  setBadge(S < 1 ? 'ok' : 'bad',
-    S < 1 ? 'Вилка найдена' : `Вилки нет · маржа ${pctStr((S - 1) * 100)}`);
+  const tPct = Number(els.threshold.value); // мин. доходность, %
+  if (theoPct >= tPct) {
+    setBadge('ok', 'Вилка найдена');
+  } else if (theoPct > 0) {
+    setBadge('weak', `Слабая вилка · +${pctStr(theoPct)}`);
+  } else {
+    setBadge('bad', `Вилки нет · маржа ${pctStr((S - 1) * 100)}`);
+  }
 
   if (invested > 0) {
     const worst = Math.min(...profits); // гарантированная (худшая) прибыль
@@ -199,36 +207,104 @@ function recalc() {
 
 /* ---------- вывод ---------- */
 
-/* Минимальный коэффициент для вилки:
-   для исхода i нужно 1/Kᵢ < 1 − Σ_{j≠i} (1/Kⱼ)
-   →  Kᵢ_min = 1 / (1 − Σ_{j≠i} 1/Kⱼ) */
+/* Подсказки под полями каждого исхода.
+   К:  чтобы вилка давала доходность ≥ t:
+       1/Kᵢ ≤ 1/(1+t) − Σ_{j≠i} 1/Kⱼ  →  Kᵢ_min = 1 / (1/(1+t) − Σ...)
+   Сумма (когда у других исходов суммы уже известны):
+       мин.  Cᵢ ≥ Σ_{j≠i} Cⱼ / (Kᵢ − 1)          — безубыточная
+       опт.  Cᵢ ≈ min_{j≠i}(Kⱼ·Cⱼ) / Kᵢ          — выравнивает прибыль */
 function updateHints(ks) {
+  const t = Number(els.threshold.value) / 100; // порог доходности, доля
+  const cap = 1 / (1 + t);                     // максимум суммы вероятностей остальных
   const rowEls = els.rows.children;
-  outcomes.forEach((o, i) => {
-    const hint = rowEls[i]?.querySelector('.k-hint');
-    if (!hint) return;
 
-    let others = 0;
-    let hasOther = false;
+  outcomes.forEach((o, i) => {
+    const kHint = rowEls[i]?.querySelector('.k-hint');
+    const sHint = rowEls[i]?.querySelector('.s-hint');
+    if (!kHint) return;
+
+    /* --- подсказка по коэффициенту --- */
+    let othersInv = 0;
+    let hasOtherK = false;
     outcomes.forEach((o2, j) => {
       if (j === i) return;
       const k2 = ks[j];
-      if (!Number.isNaN(k2) && k2 >= MIN_ODDS) { others += 1 / k2; hasOther = true; }
+      if (!Number.isNaN(k2) && k2 >= MIN_ODDS) { othersInv += 1 / k2; hasOtherK = true; }
     });
 
-    if (!hasOther) { hint.textContent = ''; hint.className = 'k-hint'; return; }
+    if (!hasOtherK) {
+      kHint.textContent = '';
+      kHint.className = 'k-hint';
+    } else if (othersInv >= cap - 1e-12) {
+      kHint.textContent = 'вилка невозможна';
+      kHint.className = 'k-hint bad';
+    } else {
+      const minK = Math.max(1 / (cap - othersInv), MIN_ODDS);
+      const kCur = ks[i];
+      const ok = !Number.isNaN(kCur) && kCur >= minK;
+      kHint.textContent = 'мин. K ≥ ' + minK.toFixed(2).replace('.', ',');
+      kHint.className = 'k-hint' + (ok ? ' ok' : '');
+    }
 
-    if (others >= 1) {
-      hint.textContent = 'вилка невозможна';
-      hint.className = 'k-hint bad';
+    /* --- подсказка по сумме --- */
+    if (!sHint) return;
+    const kI = ks[i];
+    if (Number.isNaN(kI) || kI <= 1) {
+      sHint.textContent = '';
+      sHint.className = 's-hint';
       return;
     }
 
-    const minK = Math.max(1 / (1 - others), MIN_ODDS);
-    const kCur = ks[i];
-    const ok = !Number.isNaN(kCur) && kCur >= minK;
-    hint.textContent = 'мин. K ≥ ' + minK.toFixed(2).replace('.', ',');
-    hint.className = 'k-hint' + (ok ? ' ok' : '');
+    let sumOthers = 0;
+    let minPayout = Infinity;
+    let hasOtherAmt = false;
+    outcomes.forEach((o2, j) => {
+      if (j === i) return;
+      const c2 = parseNum(o2.amt);
+      if (Number.isNaN(c2) || c2 <= 0) return;
+      hasOtherAmt = true;
+      sumOthers += c2;
+      const k2 = ks[j];
+      if (!Number.isNaN(k2) && k2 >= MIN_ODDS) minPayout = Math.min(minPayout, k2 * c2);
+    });
+
+    if (!hasOtherAmt || !Number.isFinite(minPayout)) {
+      sHint.textContent = '';
+      sHint.className = 's-hint';
+      return;
+    }
+
+    const minSum = sumOthers / (kI - 1);   // ниже — этот исход в минусе
+    const optSum = minPayout / kI;         // выравнивает прибыль по исходам
+    const maxSum = minPayout - sumOthers;  // выше — соседний исход в минусе
+
+    if (maxSum < minSum - 1e-9) {
+      sHint.textContent = 'вилка невозможна';
+      sHint.className = 's-hint bad';
+      return;
+    }
+
+    /* подсказки — в заданной кратности сумм */
+    const m = Number(els.multiple.value);
+    const ceilM = x => m ? Math.ceil(x / m) * m : Math.ceil(x);
+    const nearestM = x => m ? Math.round(x / m) * m : Math.round(x);
+    const floorM = x => m ? Math.floor(x / m) * m : Math.floor(x);
+
+    const minHint = ceilM(minSum);
+    if (minHint > maxSum + 1e-9) {
+      sHint.textContent = 'вилка невозможна';
+      sHint.className = 's-hint bad';
+      return;
+    }
+    let optHint = nearestM(optSum);
+    if (optHint > maxSum) optHint = floorM(maxSum);   // не задираем выше потолка соседей
+    if (optHint < minHint) optHint = minHint;
+
+    const cCur = parseNum(o.amt);
+    const ok = !Number.isNaN(cCur) && cCur >= minSum - 1e-9 && cCur <= maxSum + 1e-9;
+    sHint.innerHTML =
+      `<span>мин. ${nfInt.format(minHint)} ₽</span> · <span>опт. ${nfInt.format(optHint)} ₽</span>`;
+    sHint.className = 's-hint' + (ok ? ' ok' : '');
   });
 }
 
@@ -299,6 +375,7 @@ els.add.addEventListener('click', () => {
 
 els.total.addEventListener('input', recalc);
 els.multiple.addEventListener('change', recalc);
+els.threshold.addEventListener('change', recalc);
 
 els.reset.addEventListener('click', () => {
   outcomes = [
@@ -307,6 +384,7 @@ els.reset.addEventListener('click', () => {
   ];
   els.total.value = '';
   els.multiple.value = '100';
+  els.threshold.value = '1';
   renderRows();
   recalc();
 });

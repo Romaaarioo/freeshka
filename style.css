@@ -11,6 +11,7 @@
   --accent-ink: #041009;
   --green: #34d399;
   --red: #f87171;
+  --warn: #fbbf24;
   --focus: #5eead4;
   --shadow: 0 10px 30px rgba(0, 0, 0, .35);
 }
@@ -27,6 +28,7 @@ html[data-theme="light"] {
   --accent-ink: #ffffff;
   --green: #059669;
   --red: #dc2626;
+  --warn: #b45309;
   --focus: #10b981;
   --shadow: 0 10px 30px rgba(20, 24, 40, .06);
 }
@@ -44,6 +46,7 @@ html[data-theme="gta"] {
   --accent-ink: #ffffff;
   --green: #ffab4a;
   --red: #ff4d6d;
+  --warn: #ffd166;
   --focus: #ff2d78;
   --shadow: 0 0 45px rgba(255, 45, 120, .16);
 }
@@ -73,6 +76,10 @@ html[data-theme="gta"] .badge[data-state="ok"] {
 
 html[data-theme="gta"] .badge[data-state="bad"] {
   box-shadow: 0 0 18px rgba(255, 77, 109, .25);
+}
+
+html[data-theme="gta"] .badge[data-state="weak"] {
+  box-shadow: 0 0 18px rgba(255, 209, 102, .25);
 }
 
 html[data-theme="gta"] .c-profit output {
@@ -207,6 +214,13 @@ body {
 }
 .badge[data-state="ok"]::before { background: var(--green); }
 
+.badge[data-state="weak"] {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+}
+.badge[data-state="weak"]::before { background: var(--warn); }
+
 .badge[data-state="bad"] {
   color: var(--red);
   border-color: color-mix(in srgb, var(--red) 40%, transparent);
@@ -279,7 +293,7 @@ body {
 #rows { display: flex; flex-direction: column; }
 
 .row {
-  padding: 10px 2px;
+  padding: 10px 2px 34px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -352,19 +366,25 @@ input[readonly] {
 .c-profit output.is-pos { color: var(--green); }
 .c-profit output.is-neg { color: var(--red); background: color-mix(in srgb, var(--red) 8%, transparent); }
 
-/* Подсказка минимального кэфа */
-.k-hint {
-  min-height: 14px;
+/* Подсказки под полями (К и Сумма) */
+.c-k, .c-amt { position: relative; }
+
+.k-hint, .s-hint {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  max-width: 100%;
   font-size: 11.5px;
+  line-height: 1.35;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.k-hint.ok { color: var(--green); }
-.k-hint.bad { color: var(--red); }
+.k-hint.ok, .s-hint.ok { color: var(--green); }
+.k-hint.bad, .s-hint.bad { color: var(--red); }
+
+.k-hint span, .s-hint span { white-space: nowrap; }
 
 /* Тумблер Фикс */
 .switch {
@@ -458,7 +478,7 @@ input[readonly] {
 /* ============ Контролы внизу ============ */
 .controls {
   display: grid;
-  grid-template-columns: 1.6fr 1fr;
+  grid-template-columns: 1.4fr 1fr 1fr;
   gap: 12px;
 }
 
@@ -490,6 +510,7 @@ input[readonly] {
       "k    amt amt"
       "profit profit profit";
     row-gap: 8px;
+    padding: 10px 2px;
   }
 
   .c-name  { grid-area: name; }
@@ -502,6 +523,9 @@ input[readonly] {
   .cell label { display: block; }
   .c-name { justify-content: center; }
   .c-name span { line-height: 24px; }
+
+  /* на мобильном подсказки в потоке — ячейки всё равно выровнены по верху */
+  .k-hint, .s-hint { position: static; margin-top: 4px; }
 
   .metrics { grid-template-columns: 1fr; }
 
