@@ -1,0 +1,418 @@
+/* ============ Токены темы ============ */
+:root {
+  --bg: #0a0b0e;
+  --card: #12141a;
+  --field: #0d0f13;
+  --border: #22252d;
+  --border-strong: #2e323c;
+  --text: #e9ebf0;
+  --muted: #8d93a0;
+  --accent: #10b981;
+  --accent-ink: #041009;
+  --green: #34d399;
+  --red: #f87171;
+  --focus: #5eead4;
+  --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+html[data-theme="light"] {
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --field: #f5f6f8;
+  --border: #e5e7ec;
+  --border-strong: #d3d6dd;
+  --text: #17181c;
+  --muted: #6c7280;
+  --accent: #10b981;
+  --accent-ink: #ffffff;
+  --green: #059669;
+  --red: #dc2626;
+  --focus: #10b981;
+  --shadow: 0 10px 30px rgba(20, 24, 40, .06);
+}
+
+/* ============ База ============ */
+* { box-sizing: border-box; }
+
+html, body { margin: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Inter", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 20px 16px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ============ Шапка ============ */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, var(--accent), #0ea5e9);
+  position: relative;
+  flex: none;
+}
+
+.brand-mark::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  background:
+    linear-gradient(135deg, transparent 44%, var(--accent-ink) 44%, var(--accent-ink) 56%, transparent 56%);
+  opacity: .9;
+}
+
+.brand-name { font-weight: 650; font-size: 17px; letter-spacing: .2px; }
+
+.brand-tag {
+  color: var(--muted);
+  font-size: 12.5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 16px;
+  cursor: pointer;
+  transition: border-color .15s, transform .1s;
+}
+
+.icon-btn:hover { border-color: var(--border-strong); }
+.icon-btn:active { transform: scale(.94); }
+
+/* ============ Карточки ============ */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+/* ============ Сводка ============ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 550;
+  border-radius: 999px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.badge[data-state="ok"] {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
+  background: color-mix(in srgb, var(--green) 10%, transparent);
+}
+.badge[data-state="ok"]::before { background: var(--green); }
+
+.badge[data-state="bad"] {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 40%, transparent);
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+}
+.badge[data-state="bad"]::before { background: var(--red); }
+
+.metrics {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.metric-label {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.metric-value {
+  display: block;
+  font-size: clamp(26px, 7vw, 34px);
+  font-weight: 680;
+  letter-spacing: -.5px;
+  font-variant-numeric: tabular-nums;
+  transition: color .2s;
+}
+
+.metric-value.is-pos { color: var(--green); }
+.metric-value.is-neg { color: var(--red); }
+
+.metric-sub {
+  display: block;
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============ Таблица исходов ============ */
+.table-head,
+.row {
+  display: grid;
+  grid-template-columns: 74px 1fr 1.1fr 1.2fr 56px 34px;
+  gap: 10px;
+  align-items: center;
+}
+
+.table-head {
+  color: var(--muted);
+  font-size: 12.5px;
+  padding: 0 2px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+#rows { display: flex; flex-direction: column; }
+
+.row {
+  padding: 10px 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.row:last-child { border-bottom: none; }
+
+.cell { display: contents; }
+.cell label {
+  display: block;
+  color: var(--muted);
+  font-size: 11.5px;
+  margin-bottom: 3px;
+}
+
+.c-name span {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+input[type="text"], input, select {
+  width: 100%;
+  background: var(--field);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+  -moz-appearance: textfield;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+input:focus-visible, select:focus-visible {
+  border-color: var(--focus);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent);
+}
+
+input::placeholder { color: var(--muted); opacity: .6; }
+
+input[readonly] {
+  color: var(--text);
+  border-style: dashed;
+  cursor: default;
+}
+
+.c-profit output {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border: 1px solid transparent;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.c-profit output.is-pos { color: var(--green); }
+.c-profit output.is-neg { color: var(--red); background: color-mix(in srgb, var(--red) 8%, transparent); }
+
+/* Тумблер Фикс */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+  flex: none;
+  justify-self: start;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: pointer;
+}
+
+.switch .track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--border-strong);
+  transition: background .2s;
+  pointer-events: none;
+}
+
+.switch .track::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.3);
+}
+
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(18px); }
+
+.del {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+
+.del:hover { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.del:disabled { opacity: .25; cursor: default; }
+.del:disabled:hover { color: var(--muted); background: transparent; }
+
+/* ============ Кнопки ============ */
+.row-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.btn {
+  border-radius: 12px;
+  padding: 10px 16px;
+  font: inherit;
+  font-weight: 570;
+  cursor: pointer;
+  transition: filter .15s, opacity .15s;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn.ghost {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
+
+.btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+.btn.subtle { color: var(--muted); }
+.btn.subtle:hover { border-color: var(--border-strong); color: var(--muted); }
+
+/* ============ Контролы внизу ============ */
+.controls {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 12px;
+}
+
+.field span {
+  display: block;
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-bottom: 6px;
+}
+
+/* ============ Футер ============ */
+.foot {
+  color: var(--muted);
+  font-size: 12.5px;
+  text-align: center;
+  padding: 4px 10px;
+}
+
+.foot p { margin: 2px 0; }
+
+/* ============ Адаптив ============ */
+@media (max-width: 600px) {
+  .table-head { display: none; }
+
+  .row {
+    grid-template-columns: 1fr 1.4fr auto auto;
+    grid-template-areas:
+      "name fix del"
+      "k    amt amt"
+      "profit profit profit";
+    row-gap: 8px;
+  }
+
+  .c-name  { grid-area: name; }
+  .c-k     { grid-area: k; }
+  .c-amt   { grid-area: amt; }
+  .c-profit{ grid-area: profit; }
+  .c-fix   { grid-area: fix; justify-self: end; align-self: center; }
+  .c-del   { grid-area: del; justify-self: end; }
+
+  .cell label { display: block; }
+  .c-name span { line-height: 24px; }
+
+  .metrics { grid-template-columns: 1fr; }
+
+  .controls { grid-template-columns: 1fr; }
+
+  .switch { justify-self: end; }
+}

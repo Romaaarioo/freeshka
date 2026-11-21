@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Вилка — калькулятор букмекерских вилок</title>
+  <meta name="description" content="Калькулятор букмекерских вилок: распределение суммы по исходам, прибыль в рублях и процентах, фиксация ставки, кратность суммы.">
+  <script>
+    // применяем тему до первой отрисовки, чтобы не было вспышки
+    try {
+      var t = localStorage.getItem('vilk-theme');
+      if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  </script>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2310b981'/%3E%3Cpath d='M18 40l10-16 8 12 10-16' stroke='%23041009' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Вилка</span>
+        <span class="brand-tag">калькулятор вилок</span>
+      </div>
+      <button id="themeToggle" class="icon-btn" aria-label="Переключить тему">🌙</button>
+    </header>
+
+    <!-- Сводка: прибыль в ₽ и % -->
+    <section class="card hero">
+      <div class="badge" id="arbBadge" data-state="idle">Введите коэффициенты</div>
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric-label">Прибыль</span>
+          <span class="metric-value" id="profitRub">—</span>
+          <span class="metric-sub" id="profitRubSub">введите суммы</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Прибыль, %</span>
+          <span class="metric-value" id="profitPct">—</span>
+          <span class="metric-sub">от оборота</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Таблица исходов -->
+    <section class="card">
+      <div class="table-head" aria-hidden="true">
+        <span>Исход</span>
+        <span>Коэф-т</span>
+        <span>Сумма</span>
+        <span>Прибыль этого исхода</span>
+        <span>Фикс</span>
+        <span></span>
+      </div>
+
+      <div id="rows"></div>
+
+      <div class="row-actions">
+        <button id="addOutcome" class="btn ghost">+ Добавить исход</button>
+        <button id="reset" class="btn ghost subtle">Сбросить</button>
+      </div>
+    </section>
+
+    <!-- Общая сумма и кратность -->
+    <section class="card controls">
+      <label class="field">
+        <span>Общая сумма, ₽</span>
+        <input id="total" inputmode="decimal" autocomplete="off" placeholder="0 — ввод сумм вручную">
+      </label>
+      <label class="field">
+        <span>Кратность суммы</span>
+        <select id="multiple">
+          <option value="0">Без округления</option>
+          <option value="100" selected>100</option>
+          <option value="500">500</option>
+          <option value="1000">1000</option>
+        </select>
+      </label>
+    </section>
+
+    <footer class="foot">
+      <p>Вилка есть, если сумма обратных коэффициентов &lt; 1. Суммы распределяются пропорционально
+        1/K, выплата по каждому исходу одинакова.</p>
+      <p>Калькулятор работает полностью в браузере — данные никуда не отправляются.</p>
+    </footer>
+
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
