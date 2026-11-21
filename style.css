@@ -215,12 +215,20 @@ body {
 
 .row:last-child { border-bottom: none; }
 
-.cell { display: contents; }
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
 .cell label {
-  display: block;
   color: var(--muted);
   font-size: 11.5px;
-  margin-bottom: 3px;
+}
+
+.c-name {
+  justify-content: center;
 }
 
 .c-name span {
@@ -408,6 +416,7 @@ input[readonly] {
   .c-del   { grid-area: del; justify-self: end; }
 
   .cell label { display: block; }
+  .c-name { justify-content: center; }
   .c-name span { line-height: 24px; }
 
   .metrics { grid-template-columns: 1fr; }
