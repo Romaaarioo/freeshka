@@ -20,10 +20,10 @@ const els = {
   total: document.getElementById('total'),
   multiple: document.getElementById('multiple'),
   badge: document.getElementById('arbBadge'),
-  profitRub: document.getElementById('profitRub'),
-  profitRubSub: document.getElementById('profitRubSub'),
-  profitPct: document.getElementById('profitPct'),
+  profitLine: document.getElementById('profitLine'),
+  profitSub: document.getElementById('profitSub'),
   theme: document.getElementById('themeToggle'),
+  gta: document.getElementById('gtaToggle'),
 };
 
 const MIN_ODDS = 1.01;   // минимальный коэффициент
@@ -88,6 +88,8 @@ function renderRows() {
     const fixIn = row.querySelector('.fix');
     const delBtn = row.querySelector('.del');
 
+    row.querySelector('.c-k').insertAdjacentHTML('beforeend', '<div class="k-hint"></div>');
+
     kIn.value = o.k;
     amtIn.value = o.amt;
     fixIn.checked = o.fixed;
@@ -115,6 +117,9 @@ function recalc() {
 
   const ks = outcomes.map(o => parseNum(o.k));
   const valid = ks.every(k => !Number.isNaN(k) && k >= MIN_ODDS);
+
+  /* подсказка минимального кэфа — считается даже при незаполненных полях */
+  updateHints(ks);
 
   if (!valid) {
     outcomes.forEach(o => { o.auto = false; });
@@ -194,30 +199,60 @@ function recalc() {
 
 /* ---------- вывод ---------- */
 
+/* Минимальный коэффициент для вилки:
+   для исхода i нужно 1/Kᵢ < 1 − Σ_{j≠i} (1/Kⱼ)
+   →  Kᵢ_min = 1 / (1 − Σ_{j≠i} 1/Kⱼ) */
+function updateHints(ks) {
+  const rowEls = els.rows.children;
+  outcomes.forEach((o, i) => {
+    const hint = rowEls[i]?.querySelector('.k-hint');
+    if (!hint) return;
+
+    let others = 0;
+    let hasOther = false;
+    outcomes.forEach((o2, j) => {
+      if (j === i) return;
+      const k2 = ks[j];
+      if (!Number.isNaN(k2) && k2 >= MIN_ODDS) { others += 1 / k2; hasOther = true; }
+    });
+
+    if (!hasOther) { hint.textContent = ''; hint.className = 'k-hint'; return; }
+
+    if (others >= 1) {
+      hint.textContent = 'вилка невозможна';
+      hint.className = 'k-hint bad';
+      return;
+    }
+
+    const minK = Math.max(1 / (1 - others), MIN_ODDS);
+    const kCur = ks[i];
+    const ok = !Number.isNaN(kCur) && kCur >= minK;
+    hint.textContent = 'мин. K ≥ ' + minK.toFixed(2).replace('.', ',');
+    hint.className = 'k-hint' + (ok ? ' ok' : '');
+  });
+}
+
 function setBadge(state, text) {
   els.badge.dataset.state = state;
   els.badge.textContent = text;
 }
 
 function setHero(rub, pctVal, invested) {
-  if (rub === null) {
-    els.profitRub.textContent = '—';
-    els.profitRub.classList.remove('is-pos', 'is-neg');
-    els.profitRubSub.textContent = invested > 0 ? `оборот ${money(invested)}` : 'введите суммы';
-  } else {
-    els.profitRub.textContent = (rub >= 0 ? '+' : '') + money(rub);
-    els.profitRub.classList.toggle('is-pos', rub > 0);
-    els.profitRub.classList.toggle('is-neg', rub < 0);
-    els.profitRubSub.textContent = `оборот ${money(invested)}`;
-  }
+  const el = els.profitLine;
+  el.classList.remove('is-pos', 'is-neg');
 
-  if (pctVal === null) {
-    els.profitPct.textContent = '—';
-    els.profitPct.classList.remove('is-pos', 'is-neg');
+  if (rub !== null) {
+    el.innerHTML =
+      `<span class="${rub >= 0 ? 'is-pos' : 'is-neg'}">${rub >= 0 ? '+' : ''}${money(rub)}</span>` +
+      `<span class="sep"> · </span>` +
+      `<span class="pct ${pctVal >= 0 ? 'is-pos' : 'is-neg'}">${pctVal >= 0 ? '+' : ''}${pctStr(pctVal)}</span>`;
+    els.profitSub.textContent = `оборот ${money(invested)}`;
+  } else if (pctVal !== null) {
+    el.innerHTML = `<span class="pct ${pctVal >= 0 ? 'is-pos' : 'is-neg'}">${pctVal >= 0 ? '+' : ''}${pctStr(pctVal)}</span>`;
+    els.profitSub.textContent = 'теоретическая доходность · введите суммы';
   } else {
-    els.profitPct.textContent = (pctVal >= 0 ? '+' : '') + pctStr(pctVal);
-    els.profitPct.classList.toggle('is-pos', pctVal > 0);
-    els.profitPct.classList.toggle('is-neg', pctVal < 0);
+    el.textContent = '—';
+    els.profitSub.textContent = 'введите коэффициенты и суммы';
   }
 }
 
@@ -276,7 +311,9 @@ els.reset.addEventListener('click', () => {
   recalc();
 });
 
-/* ---------- тема ---------- */
+/* ---------- темы (тёмная / светлая / GTA VI) ---------- */
+
+let baseTheme = 'dark'; // обычная тема, к которой возвращаемся из GTA-стиля
 
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
@@ -285,10 +322,25 @@ function applyTheme(t) {
 }
 
 els.theme.addEventListener('click', () => {
-  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  const cur = document.documentElement.dataset.theme;
+  const next = cur === 'gta' ? baseTheme : (cur === 'dark' ? 'light' : 'dark');
+  applyTheme(next);
+});
+
+els.gta.addEventListener('click', () => {
+  const cur = document.documentElement.dataset.theme;
+  if (cur === 'gta') {
+    applyTheme(baseTheme);
+  } else {
+    baseTheme = cur;
+    applyTheme('gta');
+  }
 });
 
 applyTheme(document.documentElement.dataset.theme || 'dark');
+if (document.documentElement.dataset.theme !== 'gta') {
+  baseTheme = document.documentElement.dataset.theme;
+}
 
 /* ---------- старт ---------- */
 renderRows();

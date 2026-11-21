@@ -9,7 +9,7 @@
     // применяем тему до первой отрисовки, чтобы не было вспышки
     try {
       var t = localStorage.getItem('vilk-theme');
-      if (!t) t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+      if (t !== 'gta') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
       document.documentElement.dataset.theme = t;
     } catch (e) {}
   </script>
@@ -25,7 +25,10 @@
         <span class="brand-name">Вилка</span>
         <span class="brand-tag">калькулятор вилок</span>
       </div>
-      <button id="themeToggle" class="icon-btn" aria-label="Переключить тему">🌙</button>
+      <div class="theme-btns">
+        <button id="gtaToggle" class="icon-btn" aria-label="Стиль GTA VI">🌴</button>
+        <button id="themeToggle" class="icon-btn" aria-label="Переключить тему">🌙</button>
+      </div>
     </header>
 
     <!-- Сводка: прибыль в ₽ и % -->
@@ -34,13 +37,8 @@
       <div class="metrics">
         <div class="metric">
           <span class="metric-label">Прибыль</span>
-          <span class="metric-value" id="profitRub">—</span>
-          <span class="metric-sub" id="profitRubSub">введите суммы</span>
-        </div>
-        <div class="metric">
-          <span class="metric-label">Прибыль, %</span>
-          <span class="metric-value" id="profitPct">—</span>
-          <span class="metric-sub">от оборота</span>
+          <span class="metric-value" id="profitLine">—</span>
+          <span class="metric-sub" id="profitSub">введите суммы</span>
         </div>
       </div>
     </section>
