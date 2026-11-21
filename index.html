@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Вилка — калькулятор букмекерских вилок</title>
-  <meta name="description" content="Калькулятор букмекерских вилок: распределение суммы по исходам, прибыль в рублях и процентах, фиксация ставки, кратность суммы.">
+  <title>Вилка — калькулятор вилок, фрибетов и страховок</title>
+  <meta name="description" content="Калькулятор букмекерских вилок, отыгрыша фрибетов и страховок: распределение суммы, прибыль в рублях и процентах, минимальные коэффициенты и суммы.">
   <script>
     // применяем тему до первой отрисовки, чтобы не было вспышки
     try {
@@ -23,7 +23,7 @@
       <div class="brand">
         <span class="brand-mark" aria-hidden="true"></span>
         <span class="brand-name">Вилка</span>
-        <span class="brand-tag">калькулятор вилок</span>
+        <span class="brand-tag">калькулятор</span>
       </div>
       <div class="theme-btns">
         <button id="gtaToggle" class="icon-btn" aria-label="Стиль GTA VI">🌴</button>
@@ -31,64 +31,130 @@
       </div>
     </header>
 
-    <!-- Сводка: прибыль в ₽ и % -->
-    <section class="card hero">
-      <div class="badge" id="arbBadge" data-state="idle">Введите коэффициенты</div>
-      <div class="metrics">
-        <div class="metric">
-          <span class="metric-label">Прибыль</span>
-          <span class="metric-value" id="profitLine">—</span>
-          <span class="metric-sub" id="profitSub">введите суммы</span>
+    <!-- ============ РАЗДЕЛ 1: ФРИШКА ============ -->
+    <div class="view" id="view-free">
+      <section class="card hero">
+        <div class="badge" data-state="idle">Введите коэффициенты</div>
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-label">Прибыль</span>
+            <span class="metric-value js-profit">—</span>
+            <span class="metric-sub js-profit-sub">введите суммы</span>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- Таблица исходов -->
-    <section class="card">
-      <div class="table-head" aria-hidden="true">
-        <span>Исход</span>
-        <span>Коэф-т</span>
-        <span>Сумма</span>
-        <span>Прибыль этого исхода</span>
-        <span>Фикс</span>
-        <span></span>
-      </div>
+      <section class="card">
+        <div class="table-head" aria-hidden="true">
+          <span>Исход</span>
+          <span>Коэф-т</span>
+          <span>Сумма</span>
+          <span>Прибыль этого исхода</span>
+          <span>Флаги</span>
+          <span></span>
+        </div>
 
-      <div id="rows"></div>
+        <div class="js-rows"></div>
 
-      <div class="row-actions">
-        <button id="addOutcome" class="btn ghost">+ Добавить исход</button>
-        <button id="reset" class="btn ghost subtle">Сбросить</button>
-      </div>
-    </section>
+        <div class="row-actions">
+          <button class="btn ghost js-add">+ Добавить исход</button>
+          <button class="btn ghost subtle js-reset">Сбросить</button>
+        </div>
+      </section>
 
-    <!-- Общая сумма и кратность -->
-    <section class="card controls">
-      <label class="field">
-        <span>Общая сумма, ₽</span>
-        <input id="total" inputmode="decimal" autocomplete="off" placeholder="0 — ввод сумм вручную">
-      </label>
-      <label class="field">
-        <span>Кратность суммы</span>
-        <select id="multiple">
-          <option value="0">Без округления</option>
-          <option value="100" selected>100</option>
-          <option value="500">500</option>
-          <option value="1000">1000</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>Мин. доходность вилки</span>
-        <select id="threshold">
-          <option value="0">Без порога</option>
-          <option value="0.5">0,5 %</option>
-          <option value="1" selected>1 %</option>
-          <option value="1.5">1,5 %</option>
-          <option value="2">2 %</option>
-          <option value="3">3 %</option>
-        </select>
-      </label>
-    </section>
+      <section class="card controls">
+        <label class="field">
+          <span>Общая сумма, ₽</span>
+          <input class="js-total" inputmode="decimal" autocomplete="off" placeholder="0 — ввод сумм вручную">
+        </label>
+        <label class="field">
+          <span>Кратность суммы</span>
+          <select class="js-multiple">
+            <option value="0">Без округления</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Мин. доходность вилки</span>
+          <select class="js-threshold">
+            <option value="0">Без порога</option>
+            <option value="0.5">0,5 %</option>
+            <option value="1" selected>1 %</option>
+            <option value="1.5">1,5 %</option>
+            <option value="2">2 %</option>
+            <option value="3">3 %</option>
+          </select>
+        </label>
+      </section>
+    </div>
+
+    <!-- ============ РАЗДЕЛ 2: СТРАХОВКА ============ -->
+    <div class="view" id="view-insurance" hidden>
+      <section class="card hero">
+        <div class="badge" data-state="idle">Введите коэффициенты</div>
+        <div class="metrics">
+          <div class="metric">
+            <span class="metric-label">Прибыль</span>
+            <span class="metric-value js-profit">—</span>
+            <span class="metric-sub js-profit-sub">введите суммы</span>
+          </div>
+        </div>
+        <div class="breakdown" hidden></div>
+      </section>
+
+      <section class="card">
+        <div class="table-head" aria-hidden="true">
+          <span>Исход</span>
+          <span>Коэф-т</span>
+          <span>Сумма</span>
+          <span>Прибыль этого исхода</span>
+          <span>Фикс</span>
+          <span></span>
+        </div>
+
+        <div class="js-rows"></div>
+
+        <div class="row-actions">
+          <button class="btn ghost js-add">+ Добавить исход</button>
+          <button class="btn ghost subtle js-reset">Сбросить</button>
+        </div>
+      </section>
+
+      <section class="card controls">
+        <label class="field">
+          <span>Общая сумма, ₽</span>
+          <input class="js-total" inputmode="decimal" autocomplete="off" placeholder="0 — ввод сумм вручную">
+        </label>
+        <label class="field">
+          <span>Кратность суммы</span>
+          <select class="js-multiple">
+            <option value="0">Без округления</option>
+            <option value="100" selected>100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Мин. доходность вилки</span>
+          <select class="js-threshold">
+            <option value="0">Без порога</option>
+            <option value="0.5">0,5 %</option>
+            <option value="1" selected>1 %</option>
+            <option value="1.5">1,5 %</option>
+            <option value="2">2 %</option>
+            <option value="3">3 %</option>
+          </select>
+        </label>
+      </section>
+    </div>
+
+    <!-- Навигация по разделам -->
+    <nav class="tabbar" aria-label="Разделы">
+      <button class="tab active" data-tab="free">Фришка</button>
+      <button class="tab" data-tab="insurance">Страховка</button>
+    </nav>
 
     <footer class="foot">
       <p>Вилка есть, если сумма обратных коэффициентов &lt; 1. Суммы распределяются пропорционально

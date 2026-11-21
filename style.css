@@ -277,7 +277,7 @@ body {
 .table-head,
 .row {
   display: grid;
-  grid-template-columns: 74px 1fr 1.1fr 1.2fr 56px 34px;
+  grid-template-columns: 74px 1fr 1.1fr 1.2fr 96px 34px;
   gap: 10px;
   align-items: center;
 }
@@ -383,10 +383,11 @@ input[readonly] {
 
 .k-hint.ok, .s-hint.ok { color: var(--green); }
 .k-hint.bad, .s-hint.bad { color: var(--red); }
+.k-hint.warn, .s-hint.warn { color: var(--warn); }
 
 .k-hint span, .s-hint span { white-space: nowrap; }
 
-/* Тумблер Фикс */
+/* Тумблер Фикс / Фри */
 .switch {
   position: relative;
   display: inline-block;
@@ -395,6 +396,36 @@ input[readonly] {
   flex: none;
   justify-self: start;
 }
+
+.switch.sm { width: 34px; height: 20px; }
+
+.switch.sm .track::after {
+  width: 14px;
+  height: 14px;
+}
+
+.switch.sm input:checked + .track::after { transform: translateX(14px); }
+
+.c-flags {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  justify-content: center;
+}
+
+.flag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.flag > span {
+  color: var(--muted);
+  font-size: 11.5px;
+  min-width: 24px;
+}
+
+.no-free .flag-free { display: none; }
 
 .switch input {
   position: absolute;
@@ -499,15 +530,86 @@ input[readonly] {
 
 .foot p { margin: 2px 0; }
 
+/* ============ Разделы (вкладки внизу) ============ */
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.view[hidden] { display: none; }
+
+.tabbar {
+  position: sticky;
+  bottom: 10px;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 6px;
+  box-shadow: var(--shadow);
+}
+
+.tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 570;
+  padding: 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: color .15s, background .15s;
+}
+
+.tab:hover { color: var(--text); }
+
+.tab.active {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--accent);
+}
+
+/* ============ Итоги по исходам («Страховка») ============ */
+.breakdown {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.bd-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px 12px;
+}
+
+.bd-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 2px;
+}
+
+.bd-value {
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+
+.bd-value.is-pos { color: var(--green); }
+.bd-value.is-neg { color: var(--red); }
+
 /* ============ Адаптив ============ */
 @media (max-width: 600px) {
   .table-head { display: none; }
 
   .row {
-    grid-template-columns: 1fr 1.4fr auto auto;
+    grid-template-columns: 1fr auto auto;
     grid-template-areas:
-      "name fix del"
-      "k    amt amt"
+      "name flags del"
+      "k    amt   amt"
       "profit profit profit";
     row-gap: 8px;
     padding: 10px 2px;
@@ -517,7 +619,7 @@ input[readonly] {
   .c-k     { grid-area: k; }
   .c-amt   { grid-area: amt; }
   .c-profit{ grid-area: profit; }
-  .c-fix   { grid-area: fix; justify-self: end; align-self: center; }
+  .c-flags { grid-area: flags; justify-self: end; flex-direction: row; gap: 10px; }
   .c-del   { grid-area: del; justify-self: end; }
 
   .cell label { display: block; }
