@@ -1,13 +1,16 @@
 'use strict';
 
 /* ============================================================
-   Калькулятор: вилки / фрибеты (Фришка) / страховки
+   Калькулятор: вилки / фрибеты (Фришка) / страховки / финрез
    Раздел «Фришка» — вилки + отыгрыш фрибета:
      чистый выигрыш фрибета W = K_f·C_f − C_f (ставка не возвращается)
-     страховка исхода j: Cⱼ = W / Kⱼ → прибыль = W·(1 − Σ 1/Kⱼ)
-     порог доходности: Σ 1/Kⱼ ≤ 1 − t
+     страховка исхода j: Cⱼ = W / Kⱼ
+     прибыль = W·(1 − Σ 1/Kⱼ) → конверсия от номинала:
+     (K_f − 1)·(1 − Σ 1/Kⱼ) · 100 %
+     Рекомендация по K фрибета: 3–6 (оптимум 4–5), конверсия до (K−1)/K.
    Раздел «Страховка» — исход 1 (фикс) + перестраховки:
      прибыльᵢ = Kᵢ·Cᵢ − ΣC, подсказки по суммам страховок
+   Раздел «Фин рез» — дневник результатов в localStorage.
    Общие формулы вилки:
      S = Σ 1/Kᵢ < 1;  Cᵢ = T·(1/Kᵢ)/S;  доходность = (1/S − 1)·100
    ============================================================ */
@@ -41,6 +44,106 @@ function pctStr(n) {
   return (n < 0 ? '−' : '') + Math.abs(n).toFixed(2).replace('.', ',') + ' %';
 }
 
+/* Рекомендация по коэффициенту фрибета.
+   Статистика конверсии фрибетов (ставка без возврата):
+     K 2.0 ≈ 50 %, 3.0 ≈ 67 %, 4.0 ≈ 75 %, 5.0 ≈ 80 %, 6.0 ≈ 83 %.
+   Теоретический потолок конверсии = (K − 1) / K.
+   Сладкая зона — K 3–6, оптимум 4–5: ниже 3 теряете деньги,
+   выше 6 растёт дисперсия и риск лимитов в БК. */
+function freeKAdvice(kf) {
+  if (Number.isNaN(kf) || kf < MIN_ODDS) {
+    return { text: 'реком. K 3–6 · опт. 4–5', cls: '' };
+  }
+  const ceiling = (kf - 1) / kf * 100;
+  const c = Math.max(0, ceiling).toFixed(0) + ' %';
+
+  if (kf < 2) return { text: `до ${c} · низкий K`, cls: ' bad' };
+  if (kf < 3) return { text: `до ${c} · лучше 3–6`, cls: ' warn' };
+  if (kf <= 6) return { text: `хороший K · до ${c}`, cls: ' ok' };
+  return { text: `до ${c} · риск лимитов`, cls: ' warn' };
+}
+
+/* Процент конверсии фрибета: (K_f − 1)·(1 − Σ 1/Kⱼ) */
+function freeConversion(kf, sumHedgeInv) {
+  if (Number.isNaN(kf) || kf <= 1) return NaN;
+  return (kf - 1) * (1 - sumHedgeInv) * 100;
+}
+
+/* ============================================================
+   Даты и деньги для «Фин рез» (локальное время, не UTC)
+   ============================================================ */
+
+const FIN_KEY = 'vilk-fin';
+
+function ymd(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function parseYmd(s) {
+  const str = String(s || '');
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(str);
+  if (!m) return null;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return ymd(d) === str ? d : null;
+}
+
+function startOfToday() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+
+function signedMoney(n) {
+  return (n > 0 ? '+' : '') + money(n);
+}
+
+function dayLabel(s, withWeekday) {
+  const d = parseYmd(s);
+  if (!d) return String(s);
+  const opts = withWeekday
+    ? { weekday: 'short', day: 'numeric', month: 'short' }
+    : { day: 'numeric', month: 'short' };
+  return new Intl.DateTimeFormat('ru-RU', opts).format(d).replace(/\./g, '');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+function newId() {
+  try {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  } catch (e) {}
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function loadFinance() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(FIN_KEY) || '[]');
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .filter(e => e && parseYmd(e.date) && Number.isFinite(e.amount) && e.amount !== 0)
+      .map(e => ({
+        id: String(e.id || newId()),
+        date: e.date,
+        amount: e.amount,
+        created: Number(e.created) || 0,
+      }));
+  } catch (e) {
+    return [];
+  }
+}
+
 /* ============================================================
    Один калькулятор (раздел)
    ============================================================ */
@@ -52,20 +155,29 @@ function createCalc(root, mode) {
     add: q('.js-add'),
     reset: q('.js-reset'),
     total: q('.js-total'),
+    totalField: q('.js-total-field'),
+    controls: q('.controls'),
     multiple: q('.js-multiple'),
     threshold: q('.js-threshold'),
+    thresholdField: q('.js-threshold-field'),
     badge: q('.badge'),
+    metricLabel: q('.metric-label'),
     profitLine: q('.js-profit'),
     profitSub: q('.js-profit-sub'),
     breakdown: q('.breakdown'),
   };
   const showFree = mode === 'free'; // в «Фришке» есть тумблер Фри
 
-  const defaultRow = (fixed) => ({ k: '', amt: '', fixed: !!fixed, free: false });
-  let outcomes = [
-    defaultRow(mode === 'insurance'), // в «Страховке» исход 1 фиксирован
-    defaultRow(false),
-  ];
+  const defaultRow = (opts) => {
+    const o = (opts && typeof opts === 'object') ? opts : { fixed: !!opts };
+    return { k: '', amt: '', fixed: !!o.fixed, free: !!o.free };
+  };
+  /* во «Фришке» исход 1 по умолчанию — фрибет (и автоматически фикс),
+     в «Страховке» исход 1 просто фиксирован */
+  const initialRows = () => mode === 'free'
+    ? [defaultRow({ fixed: true, free: true }), defaultRow()]
+    : [defaultRow(mode === 'insurance'), defaultRow()];
+  let outcomes = initialRows();
 
   const freeIdx = () => outcomes.findIndex(o => o.free);
   const isFreeMode = () => showFree && freeIdx() >= 0;
@@ -135,13 +247,19 @@ function createCalc(root, mode) {
 
   function recalc() {
     const m = Number(els.multiple.value); // 0 | 100 | 500 | 1000
-    const t = Number(els.threshold.value) / 100; // порог доходности, доля
-    const totalRaw = parseNum(els.total.value);
-    const T = (!Number.isNaN(totalRaw) && totalRaw > 0) ? totalRaw : 0;
-
     const ks = outcomes.map(o => parseNum(o.k));
     const free = isFreeMode();
     const fi = freeIdx();
+
+    /* в режиме фрибета «общая сумма» не участвует и скрыта */
+    const totalRaw = parseNum(els.total.value);
+    const T = (!free && !Number.isNaN(totalRaw) && totalRaw > 0) ? totalRaw : 0;
+
+    /* в режиме фрибета «общая сумма» и порог вилки не имеют смысла — скрываем */
+    if (els.totalField) els.totalField.hidden = free;
+    if (els.thresholdField) els.thresholdField.hidden = free;
+    if (els.controls && showFree) els.controls.classList.toggle('free-mode', free);
+    if (els.metricLabel) els.metricLabel.textContent = free ? 'Прибыль фрибета' : 'Прибыль';
 
     updateHints(ks);
 
@@ -160,18 +278,20 @@ function createCalc(root, mode) {
     const theoPct = (1 / S - 1) * 100;
 
     /* --- параметры фрибета --- */
-    let W = NaN; // чистый выигрыш фрибета
+    let kf = NaN;   // коэффициент фрибета
+    let cf = NaN;   // номинал фрибета
+    let W = NaN;    // чистый выигрыш фрибета
     if (free) {
-      const kf = ks[fi];
-      const cf = parseNum(outcomes[fi].amt);
+      kf = ks[fi];
+      cf = parseNum(outcomes[fi].amt);
       if (!Number.isNaN(kf) && !Number.isNaN(cf) && cf > 0) W = kf * cf - cf;
     }
-    let Sprime = NaN; // Σ 1/K по перестраховкам
+    let Sprime = 0; // Σ 1/K по перестраховкам
     if (free) {
-      Sprime = 0;
       outcomes.forEach((o, j) => { if (j !== fi) Sprime += inv[j]; });
     }
-    const theoFree = (1 - Sprime) * 100; // доходность отыгрыша, % от номинала фрибета
+    /* конверсия фрибета в % от номинала: (K_f − 1)·(1 − Σ 1/Kⱼ) */
+    const convPct = free ? freeConversion(kf, Sprime) : NaN;
 
     /* --- распределение сумм --- */
     if (T > 0) {
@@ -208,7 +328,7 @@ function createCalc(root, mode) {
         o.amt = String(val);
         o.auto = true;
       });
-    } else if (outcomes.some(o => !o.free && o.fixed && parseNum(o.amt) > 0)) {
+    } else if (!free && outcomes.some(o => !o.free && o.fixed && parseNum(o.amt) > 0)) {
       /* фикс-якорь: остальные исходы считаем от него */
       const ai = outcomes.findIndex(o => !o.free && o.fixed && parseNum(o.amt) > 0);
       const P = ks[ai] * parseNum(outcomes[ai].amt);
@@ -240,11 +360,26 @@ function createCalc(root, mode) {
     });
 
     /* --- сводка --- */
+    const real = profits.filter(p => !Number.isNaN(p));
+    const worst = real.length ? Math.min(...real) : NaN;
+    /* фактическая конверсия с учётом округления ставок */
+    const actualConv = (invested > 0 && !Number.isNaN(worst) && cf > 0)
+      ? worst / cf * 100
+      : convPct;
+
     if (free) {
-      const tPct = t * 100;
-      if (theoFree >= tPct) setBadge('ok', 'Фрибет отыграется');
-      else if (theoFree > 0) setBadge('weak', `Слабый отыгрыш · +${pctStr(theoFree)}`);
-      else setBadge('bad', 'Вилка невозможна');
+      const c = Number.isFinite(actualConv) ? Math.max(0, actualConv).toFixed(0) + ' %' : '';
+      if (Sprime >= 1) {
+        setBadge('bad', 'Отыгрыш в минус');
+      } else if (kf > 6) {
+        setBadge('weak', `K ${kf.toFixed(2).replace('.', ',')} · риск лимитов`);
+      } else if (kf < 3) {
+        setBadge('weak', `Низкий K · ${c}`);
+      } else if (actualConv >= 60) {
+        setBadge('ok', `Фрибет отыграется · ${c}`);
+      } else {
+        setBadge('weak', `Слабый отыгрыш · ${c}`);
+      }
     } else {
       const tPct = Number(els.threshold.value);
       if (theoPct >= tPct) setBadge('ok', 'Вилка найдена');
@@ -252,15 +387,18 @@ function createCalc(root, mode) {
       else setBadge('bad', `Вилки нет · маржа ${pctStr((S - 1) * 100)}`);
     }
 
-    const baseLabel = free ? 'реальные ставки' : 'оборот';
-    if (invested > 0) {
-      const real = profits.filter(p => !Number.isNaN(p));
-      const worst = real.length ? Math.min(...real) : NaN;
-      setHero(worst, worst / invested * 100, `${baseLabel} ${money(invested)}`);
-      setBreakdown(mode === 'insurance' ? profits : null, invested);
-    } else if (free && !Number.isNaN(W)) {
-      setHero(null, theoFree, 'от номинала фрибета · введите суммы страховок');
+    if (free) {
+      if (invested > 0 && !Number.isNaN(worst) && cf > 0) {
+        setHero(worst, actualConv, `реальные ставки ${money(invested)} · фрибет ${money(cf)}`);
+      } else if (Number.isFinite(convPct)) {
+        setHero(null, convPct, 'конверсия от номинала фрибета');
+      } else {
+        setHero(null, null, 'введите K фрибета и страховок');
+      }
       setBreakdown(null, null);
+    } else if (invested > 0) {
+      setHero(worst, worst / invested * 100, `оборот ${money(invested)}`);
+      setBreakdown(mode === 'insurance' ? profits : null, invested);
     } else {
       setHero(null, theoPct, 'теоретическая доходность · введите суммы');
       setBreakdown(null, null);
@@ -314,6 +452,8 @@ function createCalc(root, mode) {
 
   function applyRows(profits, vals, invested) {
     const rowEls = els.rows.children;
+    const freeMode = isFreeMode();
+    const fiRow = freeIdx();
     outcomes.forEach((o, i) => {
       const row = rowEls[i];
       if (!row) return;
@@ -324,6 +464,9 @@ function createCalc(root, mode) {
 
       row.querySelector('.c-name span').textContent = `Исход ${i + 1}`;
       row.querySelector('.del').disabled = outcomes.length <= 2;
+
+      const amtLabel = row.querySelector('.c-amt label');
+      if (amtLabel) amtLabel.textContent = (freeMode && i === fiRow) ? 'Номинал фрибета' : 'Сумма';
 
       if (o.auto) {
         if (!amtIn.readOnly) { amtIn.readOnly = true; amtIn.value = o.amt; }
@@ -350,9 +493,11 @@ function createCalc(root, mode) {
 
   /* ---------- подсказки ---------- */
 
-  /* К:  чтобы доходность была ≥ t:
-         вилка:      1/Kᵢ ≤ 1/(1+t) − Σ_{j≠i} 1/Kⱼ
-         фрибет:     Σ 1/Kⱼ (по перестраховкам) ≤ 1 − t
+  /* Классическая вилка: чтобы доходность была ≥ t,
+       1/Kᵢ ≤ 1/(1+t) − Σ_{j≠i} 1/Kⱼ
+     Фрибет: вместо бесполезного «мин. K ≥ 1,01» показываем
+       рекомендацию по K фрибета (3–6) и реальный отыгрыш
+       (K_f − 1)·(1 − Σ 1/Kⱼ) в % от номинала.
    Сумма (когда у соседних исходов суммы известны):
          мин.  Cᵢ ≥ Σ Cⱼ / (Kᵢ − 1)
          опт.  вилка:   Cᵢ = min(Kⱼ·Cⱼ) / Kᵢ
@@ -362,13 +507,22 @@ function createCalc(root, mode) {
     const t = Number(els.threshold.value) / 100;
     const free = isFreeMode();
     const fi = freeIdx();
-    const cap = free ? 1 - t : 1 / (1 + t);
+    const cap = 1 / (1 + t); // порог классической вилки
 
     let W = NaN;
+    let kf = NaN;
+    let sumHedgeInv = 0;
+    let allHedgeK = true;
     if (free) {
-      const kf = ks[fi];
+      kf = ks[fi];
       const cf = parseNum(outcomes[fi].amt);
       if (!Number.isNaN(kf) && !Number.isNaN(cf) && cf > 0) W = kf * cf - cf;
+      outcomes.forEach((o, j) => {
+        if (j === fi) return;
+        const k2 = ks[j];
+        if (!Number.isNaN(k2) && k2 >= MIN_ODDS) sumHedgeInv += 1 / k2;
+        else allHedgeK = false;
+      });
     }
 
     const rowEls = els.rows.children;
@@ -382,19 +536,33 @@ function createCalc(root, mode) {
 
       /* --- подсказка по коэффициенту --- */
       if (isFreeRow) {
-        /* кэф фрибета влияет только на размер выплаты, не на доходность */
-        kHint.textContent = '';
-        kHint.className = 'k-hint';
+        /* K фрибета влияет на размер выплаты и на потолок конверсии */
+        const adv = freeKAdvice(kf);
+        kHint.textContent = adv.text;
+        kHint.className = 'k-hint' + adv.cls;
+      } else if (free) {
+        /* кэф перестраховки: показываем реальный отыгрыш, а не 1,01 */
+        if (Number.isNaN(kf) || kf <= 1 || !allHedgeK) {
+          kHint.textContent = 'K противоположного исхода';
+          kHint.className = 'k-hint';
+        } else if (sumHedgeInv >= 1) {
+          kHint.textContent = 'отыгрыш в минус';
+          kHint.className = 'k-hint bad';
+        } else {
+          const conv = freeConversion(kf, sumHedgeInv);
+          const c = Math.max(0, conv).toFixed(0) + ' %';
+          const cls = conv >= 60 ? ' ok' : (conv >= 45 ? ' warn' : ' bad');
+          kHint.textContent = `отыгрыш ~${c}`;
+          kHint.className = 'k-hint' + cls;
+        }
       } else {
         let othersInv = 0;
         let hasOtherK = false;
         outcomes.forEach((o2, j) => {
-          if (j === i || (free && j === fi)) return; // кэф фрибета не участвует
+          if (j === i) return;
           const k2 = ks[j];
           if (!Number.isNaN(k2) && k2 >= MIN_ODDS) { othersInv += 1 / k2; hasOtherK = true; }
         });
-        /* в отыгрыше фрибета подсказка работает и без других кэфов */
-        if (free) hasOtherK = true;
 
         if (!hasOtherK) {
           kHint.textContent = '';
@@ -513,7 +681,7 @@ function createCalc(root, mode) {
   });
 
   els.reset.addEventListener('click', () => {
-    outcomes = [defaultRow(mode === 'insurance'), defaultRow(false)];
+    outcomes = initialRows();
     els.total.value = '';
     els.multiple.value = '100';
     els.threshold.value = '1';
@@ -529,18 +697,354 @@ function createCalc(root, mode) {
   recalc();
 }
 
+/* ============================================================
+   Раздел «Фин рез» — дневник результатов
+   ============================================================ */
+
+function createFinance(root) {
+  const q = (sel) => root.querySelector(sel);
+  const els = {
+    badge: q('.badge'),
+    today: q('.js-fin-today'),
+    week: q('.js-fin-week'),
+    month: q('.js-fin-month'),
+    total: q('.js-fin-total'),
+    best: q('.js-fin-best'),
+    avg: q('.js-fin-avg'),
+    count: q('.js-fin-count'),
+    chart: q('.js-fin-chart'),
+    date: q('.js-fin-date'),
+    amount: q('.js-fin-amount'),
+    plus: q('.js-sign-plus'),
+    minus: q('.js-sign-minus'),
+    add: q('.js-fin-add'),
+    error: q('.js-fin-error'),
+    list: q('.js-fin-list'),
+    clear: q('.js-fin-clear'),
+  };
+
+  let entries = loadFinance();
+  let sign = 1;
+  let lastToday = ymd(new Date());
+
+  const todayKey = () => ymd(new Date());
+  const fromKey = (days) => ymd(addDays(startOfToday(), -(days - 1)));
+
+  function save() {
+    try { localStorage.setItem(FIN_KEY, JSON.stringify(entries)); } catch (e) {}
+  }
+
+  function setValue(el, n) {
+    if (!el) return;
+    el.textContent = signedMoney(n);
+    el.classList.toggle('is-pos', n > 0);
+    el.classList.toggle('is-neg', n < 0);
+  }
+
+  function totals() {
+    const tk = todayKey();
+    const from7 = fromKey(7);
+    const from30 = fromKey(30);
+    let today = 0, week = 0, month = 0, total = 0;
+    entries.forEach(e => {
+      total += e.amount;
+      if (e.date === tk) today += e.amount;
+      if (e.date >= from7 && e.date <= tk) week += e.amount;
+      if (e.date >= from30 && e.date <= tk) month += e.amount;
+    });
+    return { today, week, month, total };
+  }
+
+  /* ---------- верхние карточки ---------- */
+
+  function renderSummary() {
+    const s = totals();
+    setValue(els.today, s.today);
+    setValue(els.week, s.week);
+    setValue(els.month, s.month);
+    setValue(els.total, s.total);
+
+    const longDate = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' }).format(new Date());
+    if (els.badge) {
+      els.badge.textContent = 'Сегодня · ' + longDate;
+      els.badge.dataset.state = s.today > 0 ? 'ok' : (s.today < 0 ? 'bad' : 'idle');
+    }
+
+    /* лучший день и среднее за 30 дней */
+    const byDay = new Map();
+    entries.forEach(e => byDay.set(e.date, (byDay.get(e.date) || 0) + e.amount));
+
+    let best = null;
+    let bestDate = '';
+    byDay.forEach((v, d) => {
+      if (best === null || v > best) { best = v; bestDate = d; }
+    });
+
+    if (els.best) {
+      if (best === null) {
+        els.best.textContent = '—';
+        els.best.classList.remove('is-pos', 'is-neg');
+        els.best.title = '';
+      } else {
+        setValue(els.best, best);
+        els.best.title = dayLabel(bestDate, true);
+      }
+    }
+    if (els.avg) setValue(els.avg, s.month / 30);
+    if (els.count) els.count.textContent = String(entries.length);
+  }
+
+  /* ---------- график за 30 дней ---------- */
+
+  function renderChart() {
+    if (!els.chart) return;
+
+    const days = 30;
+    const start = addDays(startOfToday(), -(days - 1));
+    const startKey = ymd(start);
+    const tk = todayKey();
+    const inWindow = entries.filter(e => e.date >= startKey && e.date <= tk);
+
+    if (!inWindow.length) {
+      els.chart.hidden = true;
+      els.chart.innerHTML = '';
+      return;
+    }
+
+    const daily = new Map();
+    inWindow.forEach(e => daily.set(e.date, (daily.get(e.date) || 0) + e.amount));
+    const before = entries
+      .filter(e => e.date < startKey)
+      .reduce((a, e) => a + e.amount, 0);
+
+    let acc = before;
+    const cum = [];
+    for (let i = 0; i < days; i++) {
+      acc += daily.get(ymd(addDays(start, i))) || 0;
+      cum.push(acc);
+    }
+
+    const lo = Math.min(...cum);
+    const hi = Math.max(...cum);
+    const span = (hi - lo) || 1;
+    const W = 600, H = 140, P = 8;
+    const x = (i) => P + i * (W - 2 * P) / (days - 1);
+    const y = (v) => P + (hi - v) / span * (H - 2 * P);
+    const zeroIn = lo <= 0 && 0 <= hi;
+    const baseY = zeroIn ? y(0) : (lo > 0 ? H - P : P);
+
+    const pts = cum.map((v, i) => `${x(i).toFixed(1)} ${y(v).toFixed(1)}`);
+    const line = 'M ' + pts.join(' L ');
+    const area = `M ${x(0).toFixed(1)} ${baseY.toFixed(1)} L ` +
+      pts.join(' L ') +
+      ` L ${x(days - 1).toFixed(1)} ${baseY.toFixed(1)} Z`;
+    const zeroLine = zeroIn
+      ? `<line class="zero" x1="${P}" y1="${y(0).toFixed(1)}" x2="${W - P}" y2="${y(0).toFixed(1)}"></line>`
+      : '';
+    const total = cum[days - 1];
+    const cls = total > 0 ? 'is-pos' : (total < 0 ? 'is-neg' : '');
+
+    els.chart.hidden = false;
+    els.chart.classList.toggle('is-neg', total < 0);
+    els.chart.innerHTML = `
+      <div class="fin-chart-head">
+        <span>Накопительно · 30 дней</span>
+        <span class="fin-chart-total ${cls}">${signedMoney(total)}</span>
+      </div>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Накопительный результат за последние 30 дней">
+        ${zeroLine}
+        <path class="area" d="${area}"></path>
+        <path class="line" d="${line}"></path>
+        <circle class="dot" cx="${x(days - 1).toFixed(1)}" cy="${y(cum[days - 1]).toFixed(1)}" r="3.5"></circle>
+      </svg>
+      <div class="fin-chart-foot">
+        <span>${escapeHtml(dayLabel(startKey))}</span>
+        <span>сегодня</span>
+      </div>`;
+  }
+
+  /* ---------- история по дням ---------- */
+
+  function renderList() {
+    if (!els.list) return;
+
+    if (!entries.length) {
+      els.list.innerHTML = '<p class="fin-empty">Пока нет записей — добавьте первый результат.</p>';
+      return;
+    }
+
+    const sorted = [...entries].sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.created || 0) - (a.created || 0);
+    });
+
+    const groups = [];
+    sorted.forEach(e => {
+      const g = groups[groups.length - 1];
+      if (g && g.date === e.date) g.items.push(e);
+      else groups.push({ date: e.date, items: [e] });
+    });
+
+    const tk = todayKey();
+    els.list.innerHTML = groups.map(g => {
+      const daySum = g.items.reduce((a, e) => a + e.amount, 0);
+      const sumCls = daySum > 0 ? 'is-pos' : (daySum < 0 ? 'is-neg' : '');
+      const label = (g.date === tk ? 'Сегодня · ' : '') + dayLabel(g.date, true);
+      const rows = g.items.map(e => `
+        <div class="fin-row">
+          <span class="fin-row-amount ${e.amount > 0 ? 'is-pos' : 'is-neg'}">${signedMoney(e.amount)}</span>
+          <button type="button" class="del js-fin-del" data-id="${escapeHtml(e.id)}" aria-label="Удалить запись">✕</button>
+        </div>`).join('');
+      return `<div class="fin-day">
+        <div class="fin-day-head"><span>${escapeHtml(label)}</span><span class="${sumCls}">${signedMoney(daySum)}</span></div>
+        ${rows}
+      </div>`;
+    }).join('');
+  }
+
+  function renderAll() {
+    lastToday = todayKey();
+    renderSummary();
+    renderChart();
+    renderList();
+  }
+
+  /* ---------- форма ---------- */
+
+  function showError(msg) {
+    if (!els.error) return;
+    els.error.textContent = msg;
+    els.error.hidden = false;
+  }
+
+  function hideError() {
+    if (!els.error) return;
+    els.error.hidden = true;
+    els.error.textContent = '';
+  }
+
+  function setSign(s) {
+    sign = s;
+    if (els.plus) {
+      els.plus.classList.toggle('active', s > 0);
+      els.plus.setAttribute('aria-pressed', String(s > 0));
+    }
+    if (els.minus) {
+      els.minus.classList.toggle('active', s < 0);
+      els.minus.setAttribute('aria-pressed', String(s < 0));
+    }
+  }
+
+  function syncDateBounds() {
+    if (!els.date) return;
+    const tk = todayKey();
+    els.date.max = tk;
+    if (!els.date.value || els.date.value > tk) els.date.value = tk;
+  }
+
+  function addEntry() {
+    const date = els.date ? els.date.value : '';
+    const amount = parseNum(els.amount ? els.amount.value : '');
+    const tk = todayKey();
+
+    if (!parseYmd(date)) return showError('Укажите дату результата');
+    if (date > tk) return showError('Дата не может быть в будущем');
+    if (!Number.isFinite(amount) || amount <= 0) return showError('Введите сумму больше нуля');
+
+    entries.push({
+      id: newId(),
+      date,
+      amount: sign * amount,
+      created: Date.now(),
+    });
+    save();
+    if (els.amount) els.amount.value = '';
+    hideError();
+    renderAll();
+    if (els.amount) els.amount.focus();
+  }
+
+  if (els.plus) els.plus.addEventListener('click', () => setSign(1));
+  if (els.minus) els.minus.addEventListener('click', () => setSign(-1));
+  if (els.add) els.add.addEventListener('click', addEntry);
+  if (els.amount) {
+    els.amount.addEventListener('input', hideError);
+    els.amount.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); addEntry(); }
+    });
+  }
+  if (els.date) els.date.addEventListener('change', hideError);
+
+  if (els.list) {
+    els.list.addEventListener('click', (e) => {
+      const btn = e.target.closest('.js-fin-del');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      entries = entries.filter(x => String(x.id) !== id);
+      save();
+      renderAll();
+    });
+  }
+
+  if (els.clear) {
+    els.clear.addEventListener('click', () => {
+      if (!entries.length) return;
+      if (!window.confirm('Удалить все записи из истории результатов?')) return;
+      entries = [];
+      save();
+      renderAll();
+    });
+  }
+
+  /* синхронизация между вкладками и обновление «сегодня» после сна */
+  window.addEventListener('storage', (e) => {
+    if (e.key === FIN_KEY) {
+      entries = loadFinance();
+      renderAll();
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) return;
+    syncDateBounds();
+    renderAll();
+  });
+
+  /* если страница открыта через полночь — обновляем «сегодня» */
+  window.setInterval(() => {
+    if (todayKey() !== lastToday) {
+      syncDateBounds();
+      renderAll();
+    }
+  }, 60000);
+
+  setSign(1);
+  syncDateBounds();
+  renderAll();
+
+  return {
+    refresh() {
+      syncDateBounds();
+      renderAll();
+    },
+  };
+}
+
 /* ---------- разделы (вкладки внизу) ---------- */
 
 const tabs = [...document.querySelectorAll('.tabbar .tab')];
 const views = {
   free: document.getElementById('view-free'),
   insurance: document.getElementById('view-insurance'),
+  finance: document.getElementById('view-finance'),
 };
+let finance = null;
 
 function applyTab(name) {
   if (!views[name]) name = 'free';
   tabs.forEach(b => b.classList.toggle('active', b.dataset.tab === name));
   Object.entries(views).forEach(([key, view]) => { view.hidden = key !== name; });
+  if (name === 'finance' && finance) finance.refresh();
   try { localStorage.setItem('vilk-tab', name); } catch (e) {}
 }
 
@@ -548,6 +1052,7 @@ tabs.forEach(b => b.addEventListener('click', () => applyTab(b.dataset.tab)));
 
 createCalc(views.free, 'free');
 createCalc(views.insurance, 'insurance');
+finance = createFinance(views.finance);
 
 let savedTab = 'free';
 try { savedTab = localStorage.getItem('vilk-tab') || 'free'; } catch (e) {}

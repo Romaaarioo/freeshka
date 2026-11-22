@@ -506,6 +506,14 @@ input[readonly] {
 .btn.subtle { color: var(--muted); }
 .btn.subtle:hover { border-color: var(--border-strong); color: var(--muted); }
 
+.btn.primary {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn.primary:hover { filter: brightness(1.06); }
+
 /* ============ Контролы внизу ============ */
 .controls {
   display: grid;
@@ -601,6 +609,224 @@ input[readonly] {
 .bd-value.is-pos { color: var(--green); }
 .bd-value.is-neg { color: var(--red); }
 
+/* ============ Фин рез ============ */
+.fin-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.fin-card {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 10px 12px;
+  min-width: 0;
+}
+
+.fin-card > span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.fin-card strong {
+  display: block;
+  font-size: 19px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fin-card strong.is-pos, .fin-stats strong.is-pos { color: var(--green); }
+.fin-card strong.is-neg, .fin-stats strong.is-neg { color: var(--red); }
+
+.fin-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.fin-stats strong {
+  color: var(--text);
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+
+.fin-form {
+  display: grid;
+  grid-template-columns: 1.1fr 1.1fr auto auto;
+  grid-template-areas: "date amount sign submit";
+  align-items: end;
+  gap: 12px;
+}
+
+.fin-form-date { grid-area: date; }
+.fin-form-amount { grid-area: amount; }
+.fin-form-sign { grid-area: sign; }
+.fin-form-submit { grid-area: submit; height: 44px; }
+
+.sign-toggle { display: flex; gap: 6px; }
+
+.sign-btn {
+  width: 46px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--field);
+  color: var(--muted);
+  font: inherit;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: color .15s, border-color .15s, background .15s;
+}
+
+.sign-btn:hover { color: var(--text); border-color: var(--border-strong); }
+
+.sign-btn.active[data-sign="plus"] {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 45%, transparent);
+  background: color-mix(in srgb, var(--green) 12%, transparent);
+}
+
+.sign-btn.active[data-sign="minus"] {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+  background: color-mix(in srgb, var(--red) 12%, transparent);
+}
+
+.fin-error {
+  color: var(--red);
+  font-size: 12.5px;
+  margin: 10px 0 0;
+}
+
+.fin-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+.fin-list-head .btn {
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+
+.fin-day {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.fin-day:first-child { border-top: none; padding-top: 2px; }
+
+.fin-day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+  margin-bottom: 4px;
+}
+
+.fin-day-head > span:last-child {
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.fin-day-head .is-pos, .fin-row-amount.is-pos { color: var(--green); }
+.fin-day-head .is-neg, .fin-row-amount.is-neg { color: var(--red); }
+
+.fin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.fin-row-amount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.fin-empty {
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 14px 0 6px;
+  margin: 0;
+}
+
+.fin-chart {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.fin-chart-head, .fin-chart-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.fin-chart-head { margin-bottom: 6px; }
+.fin-chart-foot { margin-top: 4px; }
+
+.fin-chart-total {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.fin-chart-total.is-pos { color: var(--green); }
+.fin-chart-total.is-neg { color: var(--red); }
+
+.fin-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.fin-chart .line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.fin-chart .area {
+  fill: color-mix(in srgb, var(--accent) 13%, transparent);
+}
+
+.fin-chart .zero {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 5 5;
+}
+
+.fin-chart .dot { fill: var(--accent); }
+
+.fin-chart.is-neg .line { stroke: var(--red); }
+.fin-chart.is-neg .dot { fill: var(--red); }
+.fin-chart.is-neg .area { fill: color-mix(in srgb, var(--red) 13%, transparent); }
+
 /* ============ Адаптив ============ */
 @media (max-width: 600px) {
   .table-head { display: none; }
@@ -634,4 +860,16 @@ input[readonly] {
   .controls { grid-template-columns: 1fr; }
 
   .switch { justify-self: end; }
+
+  .fin-cards { grid-template-columns: repeat(2, 1fr); }
+  .fin-card strong { font-size: 17px; }
+
+  .fin-form {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "date amount"
+      "sign submit";
+  }
+
+  .fin-form-submit { width: 100%; }
 }
