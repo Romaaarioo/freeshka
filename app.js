@@ -186,6 +186,8 @@ function createCalc(root, mode) {
     breakdown: q('.breakdown'),
   };
   const showFree = mode === 'free'; // в «Фришке» есть тумблер Фри
+  const quickWrap = root.querySelector('.quick-free');
+  const quickBtns = [...root.querySelectorAll('.quick-free .quick-btn')];
 
   const defaultRow = (opts) => {
     const o = (opts && typeof opts === 'object') ? opts : { fixed: !!opts };
@@ -277,6 +279,7 @@ function createCalc(root, mode) {
     /* в режиме фрибета «общая сумма» и порог вилки не имеют смысла — скрываем */
     if (els.totalField) els.totalField.hidden = free;
     if (els.thresholdField) els.thresholdField.hidden = free;
+    if (quickWrap) quickWrap.hidden = !free;
     if (els.controls && showFree) els.controls.classList.toggle('free-mode', free);
     if (els.metricLabel) els.metricLabel.textContent = free ? 'Прибыль фрибета' : 'Прибыль';
 
@@ -733,6 +736,18 @@ function createCalc(root, mode) {
   els.total.addEventListener('input', recalc);
   els.multiple.addEventListener('change', recalc);
   els.threshold.addEventListener('change', recalc);
+
+  /* быстрые суммы номинала фрибета */
+  quickBtns.forEach(btn => btn.addEventListener('click', () => {
+    const fi = freeIdx();
+    if (fi < 0) return;
+    const val = btn.dataset.amt || '';
+    outcomes[fi].amt = val;
+    const row = els.rows.children[fi];
+    const amtIn = row ? row.querySelector('.amt') : null;
+    if (amtIn) { amtIn.value = val; amtIn.focus(); }
+    recalc();
+  }));
 
   renderRows();
   recalc();

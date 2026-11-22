@@ -897,6 +897,8 @@ input[readonly] {
 .quick-btn:hover { border-color: var(--accent); color: var(--accent); }
 .quick-btn:active { transform: translateY(1px); }
 
+.quick-free { margin-top: 6px; }
+
 .fin-note {
   color: var(--green);
   font-size: 12.5px;
