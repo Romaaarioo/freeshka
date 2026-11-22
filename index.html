@@ -14,7 +14,7 @@
     } catch (e) {}
   </script>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2310b981'/%3E%3Cpath d='M18 40l10-16 8 12 10-16' stroke='%23041009' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
   <main class="app">
@@ -160,6 +160,16 @@
           <div class="fin-card"><span>30 дней</span><strong class="js-fin-month">0 ₽</strong></div>
           <div class="fin-card"><span>Всего</span><strong class="js-fin-total">0 ₽</strong></div>
         </div>
+        <div class="fin-bank">
+          <label class="fin-bank-field">
+            <span>Старт. банкролл, ₽</span>
+            <input class="js-fin-bank" inputmode="decimal" autocomplete="off" placeholder="0">
+          </label>
+          <div class="fin-bank-values">
+            <span>Банкролл <strong class="js-fin-bank-now">—</strong></span>
+            <span>ROI <strong class="js-fin-roi">—</strong></span>
+          </div>
+        </div>
         <div class="fin-stats">
           <span>Лучший день <strong class="js-fin-best">—</strong></span>
           <span>В среднем за 30 дней <strong class="js-fin-avg">—</strong></span>
@@ -187,13 +197,25 @@
           </div>
           <button class="btn primary js-fin-add fin-form-submit">Добавить</button>
         </div>
+        <div class="quick-amounts">
+          <span>Быстро:</span>
+          <button type="button" class="quick-btn" data-amt="100">+100</button>
+          <button type="button" class="quick-btn" data-amt="500">+500</button>
+          <button type="button" class="quick-btn" data-amt="1000">+1000</button>
+        </div>
         <p class="fin-error js-fin-error" hidden></p>
+        <p class="fin-note js-fin-note" hidden></p>
       </section>
 
       <section class="card">
         <div class="fin-list-head">
           <span>История результатов</span>
-          <button class="btn ghost subtle js-fin-clear">Очистить</button>
+          <div class="fin-list-actions">
+            <button type="button" class="btn ghost subtle js-fin-export">Экспорт</button>
+            <button type="button" class="btn ghost subtle js-fin-import">Импорт</button>
+            <button type="button" class="btn ghost subtle js-fin-clear">Очистить</button>
+          </div>
+          <input type="file" class="js-fin-file" accept=".json,application/json" hidden>
         </div>
         <div class="js-fin-list"></div>
       </section>
@@ -214,6 +236,6 @@
     </footer>
 
   </main>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

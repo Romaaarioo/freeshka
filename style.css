@@ -713,7 +713,8 @@ input[readonly] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   margin-bottom: 6px;
   font-weight: 600;
 }
@@ -827,42 +828,159 @@ input[readonly] {
 .fin-chart.is-neg .dot { fill: var(--red); }
 .fin-chart.is-neg .area { fill: color-mix(in srgb, var(--red) 13%, transparent); }
 
+/* банкролл и ROI */
+.fin-bank {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-top: 12px;
+}
+
+.fin-bank-field span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.fin-bank-field input {
+  width: 132px;
+  padding: 7px 10px;
+  font-size: 13.5px;
+}
+
+.fin-bank-values {
+  display: flex;
+  gap: 18px;
+  color: var(--muted);
+  font-size: 12.5px;
+  padding-bottom: 7px;
+}
+
+.fin-bank-values strong {
+  color: var(--text);
+  font-weight: 620;
+  font-variant-numeric: tabular-nums;
+}
+
+.fin-bank-values strong.is-pos { color: var(--green); }
+.fin-bank-values strong.is-neg { color: var(--red); }
+
+/* быстрые суммы */
+.quick-amounts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.quick-amounts > span {
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.quick-btn {
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 570;
+  padding: 7px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+
+.quick-btn:hover { border-color: var(--accent); color: var(--accent); }
+.quick-btn:active { transform: translateY(1px); }
+
+.fin-note {
+  color: var(--green);
+  font-size: 12.5px;
+  margin: 10px 0 0;
+}
+
+.fin-list-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* режимы графика */
+.fin-chart-modes {
+  display: flex;
+  gap: 4px;
+}
+
+.fin-chart-modes .mode {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+
+.fin-chart-modes .mode.active {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.fin-chart .bar.pos { fill: var(--green); }
+.fin-chart .bar.neg { fill: var(--red); }
+
 /* ============ Адаптив ============ */
 @media (max-width: 600px) {
   .table-head { display: none; }
 
+  /* равные колонки — поля не наезжают друг на друга */
   .row {
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas:
-      "name flags del"
-      "k    amt   amt"
-      "profit profit profit";
+      "name   del"
+      "flags  flags"
+      "k      amt"
+      "profit profit";
+    column-gap: 10px;
     row-gap: 8px;
-    padding: 10px 2px;
+    padding: 12px 2px;
   }
 
-  .c-name  { grid-area: name; }
-  .c-k     { grid-area: k; }
-  .c-amt   { grid-area: amt; }
-  .c-profit{ grid-area: profit; }
-  .c-flags { grid-area: flags; justify-self: end; flex-direction: row; gap: 10px; }
-  .c-del   { grid-area: del; justify-self: end; }
+  .c-name   { grid-area: name; align-self: center; }
+  .c-del    { grid-area: del; justify-self: end; align-self: center; }
+  .c-flags  { grid-area: flags; flex-direction: row; gap: 14px; }
+  .c-k      { grid-area: k; }
+  .c-amt    { grid-area: amt; }
+  .c-profit { grid-area: profit; }
 
-  .cell label { display: block; }
-  .c-name { justify-content: center; }
-  .c-name span { line-height: 24px; }
+  .cell label {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 
-  /* на мобильном подсказки в потоке — ячейки всё равно выровнены по верху */
+  .c-name { justify-content: flex-start; }
+  .c-name span { line-height: 30px; }
+
+  /* на мобильном подсказки в потоке */
   .k-hint, .s-hint { position: static; margin-top: 4px; }
 
   .metrics { grid-template-columns: 1fr; }
 
   .controls { grid-template-columns: 1fr; }
 
-  .switch { justify-self: end; }
-
   .fin-cards { grid-template-columns: repeat(2, 1fr); }
   .fin-card strong { font-size: 17px; }
+
+  .fin-bank-values { padding-bottom: 2px; }
 
   .fin-form {
     grid-template-columns: 1fr 1fr;
@@ -872,4 +990,6 @@ input[readonly] {
   }
 
   .fin-form-submit { width: 100%; }
+
+  .fin-list-head { flex-wrap: wrap; }
 }

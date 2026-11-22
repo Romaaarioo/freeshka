@@ -74,6 +74,8 @@ function freeConversion(kf, sumHedgeInv) {
    ============================================================ */
 
 const FIN_KEY = 'vilk-fin';
+const BANK_KEY = 'vilk-fin-bank';
+const CHART_KEY = 'vilk-fin-chart';
 
 function ymd(d) {
   const y = d.getFullYear();
@@ -141,6 +143,23 @@ function loadFinance() {
       }));
   } catch (e) {
     return [];
+  }
+}
+
+function loadBank() {
+  try {
+    const v = parseFloat(localStorage.getItem(BANK_KEY));
+    return Number.isFinite(v) && v > 0 ? v : 0;
+  } catch (e) {
+    return 0;
+  }
+}
+
+function loadChartMode() {
+  try {
+    return localStorage.getItem(CHART_KEY) === 'daily' ? 'daily' : 'cum';
+  } catch (e) {
+    return 'cum';
   }
 }
 
@@ -542,8 +561,17 @@ function createCalc(root, mode) {
         kHint.className = 'k-hint' + adv.cls;
       } else if (free) {
         /* кэф перестраховки: показываем реальный отыгрыш, а не 1,01 */
-        if (Number.isNaN(kf) || kf <= 1 || !allHedgeK) {
-          kHint.textContent = 'K противоположного исхода';
+        if (Number.isNaN(kf) || kf <= 1) {
+          kHint.textContent = 'нужен K фрибета';
+          kHint.className = 'k-hint';
+        } else if (!allHedgeK) {
+          /* кэф ещё не введён — честный противоположный для пары исходов */
+          if (outcomes.length === 2) {
+            const kOpp = kf / (kf - 1);
+            kHint.textContent = 'противоположный ~' + kOpp.toFixed(2).replace('.', ',');
+          } else {
+            kHint.textContent = 'K противоположного исхода';
+          }
           kHint.className = 'k-hint';
         } else if (sumHedgeInv >= 1) {
           kHint.textContent = 'отыгрыш в минус';
@@ -584,7 +612,15 @@ function createCalc(root, mode) {
 
       /* --- подсказка по сумме --- */
       if (!sHint) return;
-      const kI = ks[i];
+      let kI = ks[i];
+      let kEstimated = false;
+      /* в режиме фрибета кэф перестраховки ещё не введён —
+         считаем подсказку от честного противоположного кэфа */
+      if (free && !isFreeRow && (Number.isNaN(kI) || kI <= 1) &&
+          outcomes.length === 2 && !Number.isNaN(kf) && kf > 1) {
+        kI = kf / (kf - 1);
+        kEstimated = true;
+      }
       if (Number.isNaN(kI) || kI <= 1) {
         sHint.textContent = '';
         sHint.className = 's-hint';
@@ -593,7 +629,7 @@ function createCalc(root, mode) {
 
       if (isFreeRow) {
         if (Number.isNaN(W)) {
-          sHint.textContent = '';
+          sHint.textContent = 'введите номинал фрибета';
           sHint.className = 's-hint';
         } else {
           sHint.innerHTML = `<span>чистый выигрыш ${nfInt.format(Math.round(W))} ₽</span>`;
@@ -617,7 +653,11 @@ function createCalc(root, mode) {
 
       let minSum, optSum, maxSum;
       if (free) {
-        if (Number.isNaN(W)) { sHint.textContent = ''; sHint.className = 's-hint'; return; }
+        if (Number.isNaN(W)) {
+          sHint.textContent = 'введите номинал фрибета';
+          sHint.className = 's-hint';
+          return;
+        }
         /* отыгрыш фрибета: считаем от чистого выигрыша W */
         minSum = hasOtherAmt ? sumOthers / (kI - 1) : 0;
         optSum = W / kI;
@@ -652,6 +692,7 @@ function createCalc(root, mode) {
       }
 
       let text;
+      const approx = kEstimated ? '~' : '';
       if (Number.isNaN(optSum)) {
         text = `<span>мин. ${nfInt.format(minHint)} ₽</span>`;
       } else {
@@ -659,8 +700,8 @@ function createCalc(root, mode) {
         if (Number.isFinite(maxSum) && optHint > maxSum) optHint = floorM(maxSum);
         if (optHint < minHint) optHint = minHint;
         text = minHint > 0
-          ? `<span>мин. ${nfInt.format(minHint)} ₽</span> · <span>опт. ${nfInt.format(optHint)} ₽</span>`
-          : `<span>опт. ${nfInt.format(optHint)} ₽</span>`;
+          ? `<span>мин. ${nfInt.format(minHint)} ₽</span> · <span>опт. ${approx}${nfInt.format(optHint)} ₽</span>`
+          : `<span>опт. ${approx}${nfInt.format(optHint)} ₽</span>`;
       }
 
       const cCur = parseNum(o.amt);
@@ -719,13 +760,24 @@ function createFinance(root) {
     minus: q('.js-sign-minus'),
     add: q('.js-fin-add'),
     error: q('.js-fin-error'),
+    note: q('.js-fin-note'),
     list: q('.js-fin-list'),
     clear: q('.js-fin-clear'),
+    bank: q('.js-fin-bank'),
+    bankNow: q('.js-fin-bank-now'),
+    roi: q('.js-fin-roi'),
+    exportBtn: q('.js-fin-export'),
+    importBtn: q('.js-fin-import'),
+    file: q('.js-fin-file'),
   };
+  const quickBtns = [...root.querySelectorAll('.quick-btn')];
 
   let entries = loadFinance();
   let sign = 1;
   let lastToday = ymd(new Date());
+  let startBank = loadBank();
+  let chartMode = loadChartMode();
+  let noteTimer = 0;
 
   const todayKey = () => ymd(new Date());
   const fromKey = (days) => ymd(addDays(startOfToday(), -(days - 1)));
@@ -792,6 +844,27 @@ function createFinance(root) {
     }
     if (els.avg) setValue(els.avg, s.month / 30);
     if (els.count) els.count.textContent = String(entries.length);
+
+    /* банкролл и ROI от стартового банка */
+    if (els.bankNow) {
+      if (startBank > 0) {
+        setValue(els.bankNow, startBank + s.total);
+      } else {
+        els.bankNow.textContent = '—';
+        els.bankNow.classList.remove('is-pos', 'is-neg');
+      }
+    }
+    if (els.roi) {
+      if (startBank > 0) {
+        const roi = s.total / startBank * 100;
+        els.roi.textContent = (roi > 0 ? '+' : '') + pctStr(roi);
+        els.roi.classList.toggle('is-pos', roi > 0);
+        els.roi.classList.toggle('is-neg', roi < 0);
+      } else {
+        els.roi.textContent = '—';
+        els.roi.classList.remove('is-pos', 'is-neg');
+      }
+    }
   }
 
   /* ---------- график за 30 дней ---------- */
@@ -807,6 +880,7 @@ function createFinance(root) {
 
     if (!inWindow.length) {
       els.chart.hidden = true;
+      els.chart.classList.remove('is-neg');
       els.chart.innerHTML = '';
       return;
     }
@@ -817,46 +891,75 @@ function createFinance(root) {
       .filter(e => e.date < startKey)
       .reduce((a, e) => a + e.amount, 0);
 
-    let acc = before;
-    const cum = [];
+    const dailyVals = [];
     for (let i = 0; i < days; i++) {
-      acc += daily.get(ymd(addDays(start, i))) || 0;
-      cum.push(acc);
+      dailyVals.push(daily.get(ymd(addDays(start, i))) || 0);
     }
 
-    const lo = Math.min(...cum);
-    const hi = Math.max(...cum);
-    const span = (hi - lo) || 1;
+    const cum = [];
+    let acc = before;
+    dailyVals.forEach(v => { acc += v; cum.push(acc); });
+
     const W = 600, H = 140, P = 8;
     const x = (i) => P + i * (W - 2 * P) / (days - 1);
-    const y = (v) => P + (hi - v) / span * (H - 2 * P);
-    const zeroIn = lo <= 0 && 0 <= hi;
-    const baseY = zeroIn ? y(0) : (lo > 0 ? H - P : P);
+    let body = '';
 
-    const pts = cum.map((v, i) => `${x(i).toFixed(1)} ${y(v).toFixed(1)}`);
-    const line = 'M ' + pts.join(' L ');
-    const area = `M ${x(0).toFixed(1)} ${baseY.toFixed(1)} L ` +
-      pts.join(' L ') +
-      ` L ${x(days - 1).toFixed(1)} ${baseY.toFixed(1)} Z`;
-    const zeroLine = zeroIn
-      ? `<line class="zero" x1="${P}" y1="${y(0).toFixed(1)}" x2="${W - P}" y2="${y(0).toFixed(1)}"></line>`
-      : '';
-    const total = cum[days - 1];
+    if (chartMode === 'daily') {
+      /* столбики дневных результатов */
+      const lo = Math.min(0, ...dailyVals);
+      const hi = Math.max(0, ...dailyVals);
+      const span = (hi - lo) || 1;
+      const y = (v) => P + (hi - v) / span * (H - 2 * P);
+      const zeroY = y(0);
+      const slot = (W - 2 * P) / days;
+      const bw = Math.max(3, Math.min(26, slot - 3));
+      const bars = dailyVals.map((v, i) => {
+        if (v === 0) return '';
+        const bx = P + i * slot + (slot - bw) / 2;
+        const by = Math.min(y(v), zeroY);
+        const bh = Math.max(1.5, Math.abs(y(v) - zeroY));
+        return `<rect class="bar ${v > 0 ? 'pos' : 'neg'}" x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}"></rect>`;
+      }).join('');
+      body = `<line class="zero" x1="${P}" y1="${zeroY.toFixed(1)}" x2="${W - P}" y2="${zeroY.toFixed(1)}"></line>${bars}`;
+    } else {
+      /* накопительная кривая */
+      const lo = Math.min(...cum);
+      const hi = Math.max(...cum);
+      const span = (hi - lo) || 1;
+      const y = (v) => P + (hi - v) / span * (H - 2 * P);
+      const zeroIn = lo <= 0 && 0 <= hi;
+      const baseY = zeroIn ? y(0) : (lo > 0 ? H - P : P);
+
+      const pts = cum.map((v, i) => `${x(i).toFixed(1)} ${y(v).toFixed(1)}`);
+      const line = 'M ' + pts.join(' L ');
+      const area = `M ${x(0).toFixed(1)} ${baseY.toFixed(1)} L ` +
+        pts.join(' L ') +
+        ` L ${x(days - 1).toFixed(1)} ${baseY.toFixed(1)} Z`;
+      const zeroLine = zeroIn
+        ? `<line class="zero" x1="${P}" y1="${y(0).toFixed(1)}" x2="${W - P}" y2="${y(0).toFixed(1)}"></line>`
+        : '';
+      body = `${zeroLine}` +
+        `<path class="area" d="${area}"></path>` +
+        `<path class="line" d="${line}"></path>` +
+        `<circle class="dot" cx="${x(days - 1).toFixed(1)}" cy="${y(cum[days - 1]).toFixed(1)}" r="3.5"></circle>`;
+    }
+
+    const total = chartMode === 'daily'
+      ? dailyVals.reduce((a, b) => a + b, 0)
+      : cum[days - 1];
     const cls = total > 0 ? 'is-pos' : (total < 0 ? 'is-neg' : '');
 
     els.chart.hidden = false;
     els.chart.classList.toggle('is-neg', total < 0);
     els.chart.innerHTML = `
       <div class="fin-chart-head">
-        <span>Накопительно · 30 дней</span>
+        <div class="fin-chart-modes">
+          <button type="button" class="mode${chartMode === 'cum' ? ' active' : ''}" data-mode="cum">Накопительно</button>
+          <button type="button" class="mode${chartMode === 'daily' ? ' active' : ''}" data-mode="daily">По дням</button>
+        </div>
         <span class="fin-chart-total ${cls}">${signedMoney(total)}</span>
       </div>
-      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Накопительный результат за последние 30 дней">
-        ${zeroLine}
-        <path class="area" d="${area}"></path>
-        <path class="line" d="${line}"></path>
-        <circle class="dot" cx="${x(days - 1).toFixed(1)}" cy="${y(cum[days - 1]).toFixed(1)}" r="3.5"></circle>
-      </svg>
+      <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Результат за последние 30 дней">${body}</svg>
       <div class="fin-chart-foot">
         <span>${escapeHtml(dayLabel(startKey))}</span>
         <span>сегодня</span>
@@ -912,6 +1015,7 @@ function createFinance(root) {
   /* ---------- форма ---------- */
 
   function showError(msg) {
+    if (els.note) els.note.hidden = true;
     if (!els.error) return;
     els.error.textContent = msg;
     els.error.hidden = false;
@@ -921,6 +1025,15 @@ function createFinance(root) {
     if (!els.error) return;
     els.error.hidden = true;
     els.error.textContent = '';
+  }
+
+  function showNote(msg) {
+    if (els.error) els.error.hidden = true;
+    if (!els.note) return;
+    els.note.textContent = msg;
+    els.note.hidden = false;
+    clearTimeout(noteTimer);
+    noteTimer = window.setTimeout(() => { if (els.note) els.note.hidden = true; }, 4000);
   }
 
   function setSign(s) {
@@ -974,6 +1087,86 @@ function createFinance(root) {
     });
   }
   if (els.date) els.date.addEventListener('change', hideError);
+
+  /* быстрые суммы — подставляют значение в поле */
+  quickBtns.forEach(btn => btn.addEventListener('click', () => {
+    if (!els.amount) return;
+    els.amount.value = btn.dataset.amt || '';
+    hideError();
+    els.amount.focus();
+  }));
+
+  /* стартовый банкролл */
+  if (els.bank) {
+    if (startBank > 0) els.bank.value = String(startBank);
+    els.bank.addEventListener('input', () => {
+      const v = parseNum(els.bank.value);
+      startBank = Number.isFinite(v) && v > 0 ? v : 0;
+      try { localStorage.setItem(BANK_KEY, startBank > 0 ? String(startBank) : ''); } catch (err) {}
+      renderSummary();
+    });
+  }
+
+  /* экспорт дневника в JSON */
+  if (els.exportBtn) {
+    els.exportBtn.addEventListener('click', () => {
+      if (!entries.length) return showNote('Пока нечего экспортировать — добавьте записи');
+      const blob = new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `finrez-${todayKey()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showNote(`Файл сохранён: finrez-${todayKey()}.json`);
+    });
+  }
+
+  /* импорт из JSON (объединение с текущими записями) */
+  if (els.importBtn && els.file) {
+    els.importBtn.addEventListener('click', () => els.file.click());
+    els.file.addEventListener('change', async () => {
+      const file = els.file.files && els.file.files[0];
+      els.file.value = '';
+      if (!file) return;
+      try {
+        const raw = JSON.parse(await file.text());
+        if (!Array.isArray(raw)) throw new Error('not an array');
+        const incoming = raw
+          .filter(e => e && parseYmd(e.date) && Number.isFinite(e.amount) && e.amount !== 0)
+          .map(e => ({
+            id: String(e.id || newId()),
+            date: e.date,
+            amount: e.amount,
+            created: Number(e.created) || 0,
+          }));
+        const byId = new Map(entries.map(e => [e.id, e]));
+        let added = 0;
+        incoming.forEach(e => {
+          if (!byId.has(e.id)) { byId.set(e.id, e); added++; }
+        });
+        entries = [...byId.values()];
+        save();
+        renderAll();
+        showNote(added ? `Импортировано записей: ${added}` : 'Новых записей нет — всё уже есть');
+      } catch (err) {
+        showError('Не удалось прочитать файл — нужен JSON из «Экспорт»');
+      }
+    });
+  }
+
+  /* переключение режима графика */
+  if (els.chart) {
+    els.chart.addEventListener('click', (e) => {
+      const btn = e.target.closest('.mode');
+      if (!btn) return;
+      chartMode = btn.dataset.mode === 'daily' ? 'daily' : 'cum';
+      try { localStorage.setItem(CHART_KEY, chartMode); } catch (err) {}
+      renderChart();
+    });
+  }
 
   if (els.list) {
     els.list.addEventListener('click', (e) => {
