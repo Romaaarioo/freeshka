@@ -14,6 +14,7 @@
   --warn: #fbbf24;
   --focus: #5eead4;
   --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  --ctl-h: 44px; /* единая высота полей и кнопок-полей */
 }
 
 html[data-theme="light"] {
@@ -100,18 +101,33 @@ html[data-theme="gta"] .switch input:checked + .track {
 
 html, body { margin: 0; }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--bg);
   color: var(--text);
   font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Inter", sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
   min-height: 100vh;
+  min-height: 100svh;
+}
+
+button, input, select, .switch, .tab {
+  touch-action: manipulation;
 }
 
 .app {
   max-width: 680px;
   margin: 0 auto;
-  padding: 20px 16px 48px;
+  padding:
+    calc(20px + env(safe-area-inset-top, 0px))
+    max(16px, env(safe-area-inset-right, 0px))
+    calc(48px + env(safe-area-inset-bottom, 0px))
+    max(16px, env(safe-area-inset-left, 0px));
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -320,19 +336,30 @@ body {
   font-size: 14px;
 }
 
-input[type="text"], input, select {
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select {
   width: 100%;
+  min-width: 0;
+  min-height: var(--ctl-h);
   background: var(--field);
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 12px;
   padding: 10px 12px;
   font: inherit;
+  /* 16px и на десктопе: iOS Safari не зумит поля и в альбомной ориентации */
+  font-size: 16px;
   font-variant-numeric: tabular-nums;
   outline: none;
   transition: border-color .15s, box-shadow .15s;
   -moz-appearance: textfield;
 }
+
+input[type="date"] {
+  height: var(--ctl-h);
+  min-width: 0;
+}
+
+input[type="date"]::-webkit-date-and-time-value { text-align: left; }
 
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button { -webkit-appearance: none; }
@@ -351,7 +378,9 @@ input[readonly] {
 }
 
 .c-profit output {
-  display: block;
+  display: flex;
+  align-items: center;
+  min-height: var(--ctl-h);
   padding: 10px 12px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--accent) 7%, transparent);
@@ -495,6 +524,12 @@ input[readonly] {
 
 .btn:active { transform: translateY(1px); }
 
+.btn:disabled {
+  opacity: .4;
+  cursor: default;
+  pointer-events: none;
+}
+
 .btn.ghost {
   background: transparent;
   border: 1px solid var(--border-strong);
@@ -520,6 +555,9 @@ input[readonly] {
   grid-template-columns: 1.4fr 1fr 1fr;
   gap: 12px;
 }
+
+/* в режиме фрибета остаётся только «Кратность суммы» */
+.controls.free-mode { grid-template-columns: minmax(0, 260px); }
 
 .field span {
   display: block;
@@ -549,7 +587,7 @@ input[readonly] {
 
 .tabbar {
   position: sticky;
-  bottom: 10px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   z-index: 5;
   display: flex;
   gap: 6px;
@@ -670,13 +708,13 @@ input[readonly] {
 .fin-form-date { grid-area: date; }
 .fin-form-amount { grid-area: amount; }
 .fin-form-sign { grid-area: sign; }
-.fin-form-submit { grid-area: submit; height: 44px; }
+.fin-form-submit { grid-area: submit; height: var(--ctl-h); }
 
 .sign-toggle { display: flex; gap: 6px; }
 
 .sign-btn {
   width: 46px;
-  height: 44px;
+  height: var(--ctl-h);
   border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--field);
@@ -845,9 +883,10 @@ input[readonly] {
 }
 
 .fin-bank-field input {
-  width: 132px;
-  padding: 7px 10px;
-  font-size: 13.5px;
+  width: 140px;
+  height: var(--ctl-h);
+  padding: 6px 10px;
+  font-size: 16px;
 }
 
 .fin-bank-values {
@@ -940,6 +979,8 @@ input[readonly] {
 
 /* ============ Адаптив ============ */
 @media (max-width: 600px) {
+  :root { --ctl-h: 48px; } /* палец + iOS: не мельче 48px */
+
   .table-head { display: none; }
 
   /* равные колонки — поля не наезжают друг на друга */
@@ -951,13 +992,13 @@ input[readonly] {
       "k      amt"
       "profit profit";
     column-gap: 10px;
-    row-gap: 8px;
+    row-gap: 10px;
     padding: 12px 2px;
   }
 
   .c-name   { grid-area: name; align-self: center; }
   .c-del    { grid-area: del; justify-self: end; align-self: center; }
-  .c-flags  { grid-area: flags; flex-direction: row; gap: 14px; }
+  .c-flags  { grid-area: flags; flex-direction: row; gap: 18px; }
   .c-k      { grid-area: k; }
   .c-amt    { grid-area: amt; }
   .c-profit { grid-area: profit; }
@@ -972,26 +1013,105 @@ input[readonly] {
   .c-name { justify-content: flex-start; }
   .c-name span { line-height: 30px; }
 
+  .c-flags .flag { min-height: 24px; }
+
+  /* увеличиваем зоны нажатия, не раздувая сами элементы */
+  .switch.sm::before {
+    content: "";
+    position: absolute;
+    inset: -12px -5px;
+  }
+
+  .del { position: relative; }
+  .del::before {
+    content: "";
+    position: absolute;
+    inset: -7px;
+  }
+
   /* на мобильном подсказки в потоке */
   .k-hint, .s-hint { position: static; margin-top: 4px; }
+  .k-hint span, .s-hint span { white-space: normal; overflow-wrap: anywhere; }
 
   .metrics { grid-template-columns: 1fr; }
 
-  .controls { grid-template-columns: 1fr; }
+  .controls,
+  .controls.free-mode { grid-template-columns: minmax(0, 1fr); }
 
-  .fin-cards { grid-template-columns: repeat(2, 1fr); }
-  .fin-card strong { font-size: 17px; }
-
-  .fin-bank-values { padding-bottom: 2px; }
-
-  .fin-form {
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      "date amount"
-      "sign submit";
+  /* iOS Safari зумит страницу при фокусе, если шрифт поля < 16px.
+     Из-за этого «камера» уезжает с ячейки — держим ровно 16px. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select {
+    font-size: 16px;
+    min-height: var(--ctl-h);
   }
 
-  .fin-form-submit { width: 100%; }
+  .c-profit output { min-height: var(--ctl-h); }
+
+  .sign-btn { width: 52px; height: var(--ctl-h); font-size: 20px; }
+  .sign-toggle { gap: 8px; }
+
+  .row-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .row-actions .btn { padding: 11px 12px; font-size: 14px; }
+
+  .tab { min-height: 44px; }
+
+  .quick-amounts { gap: 7px; }
+  .quick-btn { min-height: 40px; font-size: 14px; padding: 8px 13px; }
+
+  .fin-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .fin-card strong { font-size: clamp(13px, 4.4vw, 17px); letter-spacing: -.2px; }
+
+  .fin-bank { align-items: stretch; gap: 8px 14px; }
+  .fin-bank-field { flex: 1 1 130px; }
+  .fin-bank-field input { width: 100%; }
+  .fin-bank-values { flex: 1 1 150px; align-items: center; padding-bottom: 0; }
+
+  .fin-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "date   date"
+      "amount sign"
+      "submit submit";
+    gap: 10px;
+  }
+
+  .fin-form .field { min-width: 0; }
+  .fin-form-date input,
+  .fin-form-amount input { width: 100%; }
+  .fin-form-submit { width: 100%; height: var(--ctl-h); }
+
+  .fin-stats { gap: 4px 14px; }
 
   .fin-list-head { flex-wrap: wrap; }
+  .fin-list-actions { width: 100%; justify-content: flex-start; }
+  .fin-list-actions .btn { min-height: 40px; padding: 8px 14px; }
+
+  .fin-chart-modes .mode { font-size: 12px; padding: 7px 12px; }
+}
+
+/* очень узкие экраны (iPhone SE и т.п.) */
+@media (max-width: 380px) {
+  .brand-tag { display: none; }
+  .brand { gap: 8px; }
+}
+
+@media (max-width: 360px) {
+  .sign-btn { width: 48px; }
+  .tab { padding: 10px 4px; font-size: 14.5px; }
+  .quick-btn { padding: 8px 10px; }
+
+  /* на очень узком экране быстрые суммы — ровной сеткой в 3 колонки */
+  .quick-amounts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 7px;
+  }
+
+  .quick-amounts > span { grid-column: 1 / -1; }
+  .quick-btn { width: 100%; }
 }

@@ -212,10 +212,10 @@ function createCalc(root, mode) {
       row.className = 'row' + (showFree ? '' : ' no-free');
       row.innerHTML = `
         <div class="cell c-name"><span>Исход ${i + 1}</span></div>
-        <div class="cell c-k"><label>Коэф-т</label>
-          <input type="text" class="k" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
-        <div class="cell c-amt"><label>Сумма</label>
-          <input type="text" class="amt" inputmode="decimal" autocomplete="off" placeholder="0"></div>
+        <div class="cell c-k"><label for="${mode}-k-${i}">Коэф-т</label>
+          <input id="${mode}-k-${i}" type="text" class="k" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
+        <div class="cell c-amt"><label for="${mode}-amt-${i}">Сумма</label>
+          <input id="${mode}-amt-${i}" type="text" class="amt" inputmode="decimal" autocomplete="off" placeholder="0"></div>
         <div class="cell c-profit"><label>Прибыль</label><output>—</output></div>
         <div class="cell c-flags">
           <div class="flag"><span>Фикс</span>
@@ -255,7 +255,13 @@ function createCalc(root, mode) {
         });
       }
       delBtn.addEventListener('click', () => {
+        const wasFree = o.free;
         outcomes.splice(i, 1);
+        /* фрибет не должен потеряться: переносим его на первый исход */
+        if (wasFree && showFree && outcomes.length) {
+          outcomes[0].free = true;
+          outcomes[0].fixed = true;
+        }
         renderRows();
         recalc();
       });
@@ -282,6 +288,7 @@ function createCalc(root, mode) {
     if (quickWrap) quickWrap.hidden = !free;
     if (els.controls && showFree) els.controls.classList.toggle('free-mode', free);
     if (els.metricLabel) els.metricLabel.textContent = free ? 'Прибыль фрибета' : 'Прибыль';
+    if (els.add) els.add.disabled = outcomes.length >= MAX_OUTCOMES;
 
     updateHints(ks);
 
@@ -1209,6 +1216,10 @@ function createFinance(root) {
     if (e.key === FIN_KEY) {
       entries = loadFinance();
       renderAll();
+    } else if (e.key === BANK_KEY) {
+      startBank = loadBank();
+      if (els.bank) els.bank.value = startBank > 0 ? String(startBank) : '';
+      renderSummary();
     }
   });
 
@@ -1297,3 +1308,47 @@ applyTheme(document.documentElement.dataset.theme || 'dark');
 if (document.documentElement.dataset.theme !== 'gta') {
   baseTheme = document.documentElement.dataset.theme;
 }
+
+/* ---------- iPhone: не даём клавиатуре спрятать поле ввода ---------- */
+(function keepFieldVisible() {
+  const isField = (el) => !!(el && el.matches && el.matches('input, select, textarea'));
+  const narrow = window.matchMedia('(max-width: 600px)');
+  let timer = 0;
+  let focusedAt = 0;
+
+  function ensureVisible() {
+    const el = document.activeElement;
+    if (!isField(el)) return;
+
+    const vv = window.visualViewport;
+    const tabbar = document.querySelector('.tabbar');
+    const tabH = (narrow.matches && tabbar) ? tabbar.getBoundingClientRect().height + 10 : 0;
+
+    const rect = el.getBoundingClientRect();
+    const top = (vv ? vv.offsetTop : 0) + 12;
+    const bottom = (vv ? vv.offsetTop + vv.height : window.innerHeight) - 12 - tabH;
+
+    let delta = 0;
+    if (rect.bottom > bottom) delta = rect.bottom - bottom;
+    else if (rect.top < top) delta = rect.top - top;
+    if (Math.abs(delta) > 1) window.scrollBy(0, delta);
+  }
+
+  function schedule(fromFocus) {
+    if (fromFocus) focusedAt = Date.now();
+    clearTimeout(timer);
+    /* ждём, пока Safari дорисует клавиатуру и изменит visual viewport */
+    timer = window.setTimeout(() => {
+      if (Date.now() - focusedAt > 3000) return;
+      ensureVisible();
+    }, 280);
+  }
+
+  document.addEventListener('focusin', (e) => {
+    if (isField(e.target)) schedule(true);
+  }, true);
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', () => schedule(false));
+  }
+})();
