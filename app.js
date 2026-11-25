@@ -17,6 +17,8 @@
 
 const MIN_ODDS = 1.01;
 const MAX_OUTCOMES = 12;
+/* минимальный отыгрыш фрибета, который реально ловится и имеет смысл брать */
+const MIN_CONV = 45;
 
 const nfInt = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 });
 
@@ -48,18 +50,20 @@ function pctStr(n) {
    Статистика конверсии фрибетов (ставка без возврата):
      K 2.0 ≈ 50 %, 3.0 ≈ 67 %, 4.0 ≈ 75 %, 5.0 ≈ 80 %, 6.0 ≈ 83 %.
    Теоретический потолок конверсии = (K − 1) / K.
+   Реалистичный минимум, который имеет смысл брать, — 45 % от номинала:
+   ниже уже невыгодно с учётом риска и времени.
    Сладкая зона — K 3–6, оптимум 4–5: ниже 3 теряете деньги,
    выше 6 растёт дисперсия и риск лимитов в БК. */
 function freeKAdvice(kf) {
   if (Number.isNaN(kf) || kf < MIN_ODDS) {
-    return { text: 'реком. K 3–6 · опт. 4–5', cls: '' };
+    return { text: 'K 3–6 · отыгрыш от 45 %', cls: '' };
   }
   const ceiling = (kf - 1) / kf * 100;
   const c = Math.max(0, ceiling).toFixed(0) + ' %';
 
-  if (kf < 2) return { text: `до ${c} · низкий K`, cls: ' bad' };
+  if (ceiling < MIN_CONV) return { text: `до ${c} · ниже 45 %`, cls: ' bad' };
   if (kf < 3) return { text: `до ${c} · лучше 3–6`, cls: ' warn' };
-  if (kf <= 6) return { text: `хороший K · до ${c}`, cls: ' ok' };
+  if (kf <= 6) return { text: `до ${c} · мин. 45 %`, cls: ' ok' };
   return { text: `до ${c} · риск лимитов`, cls: ' warn' };
 }
 
@@ -402,10 +406,10 @@ function createCalc(root, mode) {
         setBadge('bad', 'Отыгрыш в минус');
       } else if (kf > 6) {
         setBadge('weak', `K ${kf.toFixed(2).replace('.', ',')} · риск лимитов`);
+      } else if (actualConv >= MIN_CONV) {
+        setBadge('ok', `Фрибет отыграется · ${c}`);
       } else if (kf < 3) {
         setBadge('weak', `Низкий K · ${c}`);
-      } else if (actualConv >= 60) {
-        setBadge('ok', `Фрибет отыграется · ${c}`);
       } else {
         setBadge('weak', `Слабый отыгрыш · ${c}`);
       }
@@ -589,9 +593,9 @@ function createCalc(root, mode) {
         } else {
           const conv = freeConversion(kf, sumHedgeInv);
           const c = Math.max(0, conv).toFixed(0) + ' %';
-          const cls = conv >= 60 ? ' ok' : (conv >= 45 ? ' warn' : ' bad');
-          kHint.textContent = `отыгрыш ~${c}`;
-          kHint.className = 'k-hint' + cls;
+          const good = conv >= MIN_CONV;
+          kHint.textContent = good ? `отыгрыш ~${c}` : `отыгрыш ~${c} · ниже 45 %`;
+          kHint.className = 'k-hint' + (good ? ' ok' : ' bad');
         }
       } else {
         let othersInv = 0;
